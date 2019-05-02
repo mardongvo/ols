@@ -1,0 +1,4 @@
+{
+	"database":"postgres://pguser:password@localhost:port/dbname?sslmode=disable",
+	"listen":"127.0.0.1:15000"
+}
