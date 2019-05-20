@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>ОЛС - Обеспечение лекарственными средствами</title>
+<link type="text/css" rel="stylesheet" href="/static/style.css">
+<script type="text/javascript" src="/static/jquery-3.4.1.min.js"></script>
+
+</head>
+<body>
+<div class="wrap">
+<div class="container">
+<input type="text" id="search_string" placeholder="ФИО/номер дела (минимум 3 символа)" size="100">
+<div id="test"></div>
+</div>
+<div class="container">
+<table class="datatable" id="search_result" width="50%"> 
+<thead>
+<tr>
+<td class="datacell">Номер дела</td>
+<td class="datacell">ФИО</td>
+</tr></thead>
+</div>
+</div>
+</table>
+<script>
+var last_search_string = "";
+$('#search_string').change(function(event) {
+	if ($('#search_string').val() != last_search_string) {
+		last_search_string = $('#search_string').val();
+		console.log($('#search_string').val());
+		//$('#test').text( $('#search_string').val() );
+		//ajax
+		$.ajax({
+			url: "/api/search",
+			data: {search_string: last_search_string},
+			timeout: 5000
+		})
+		.done(function(data, textStatus, jqXHR) {
+			console.log(data);
+			$('#test').text("success");
+		})
+		.fail(function(data, textStatus, jqXHR) {
+			console.log(data);
+			console.log(textStatus);
+			$('#test').text("fail");
+		})
+		;
+	}
+});
+$('#search_string').keyup(function(event) {
+	$('#search_string').change();
+});
+</script>
+
+</body>
+</html>

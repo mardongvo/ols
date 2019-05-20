@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"text/template"
 	"time"
 )
 
@@ -15,8 +16,25 @@ func JsonApiHandle(w http.ResponseWriter, r *http.Request) {
 	for k, v := range q {
 		res += "\"" + k + "\":\"" + v[0] + "\", "
 	}
-	res += "\"" + "none" + "\":\"" + "none" + "\"}"
+	res += "\"}"
 	w.Write([]byte(res))
+}
+
+func RootHandle(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("./template/root.tmpl")
+	if err != nil {
+		log.Printf("Ошибка парсинга шаблона (template/root.tmpl): %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Template parsing error"))
+		return
+	}
+	err = tmpl.Execute(w, nil)
+	if err != nil {
+		log.Printf("Ошибка рендеринга шаблона (template/root.tmpl): %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Template rendering error"))
+		return
+	}
 }
 
 func main() {
@@ -49,7 +67,7 @@ func main() {
 	mux.Handle("/static/", http.StripPrefix("/static/",
 		http.FileServer(http.Dir("./static/"))))
 	mux.HandleFunc("/api/", JsonApiHandle)
-	mux.Handle("/", http.RedirectHandler("/static/search", http.StatusMovedPermanently))
+	mux.HandleFunc("/", RootHandle)
 
 	s := &http.Server{
 		Addr:           cfg.ListenAddress,
