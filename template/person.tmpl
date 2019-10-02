@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+{{template "common_resources"}}
+<title>ОЛС - Обеспечение лекарственными средствами</title>
+<script>
+function datareload(){
+    var idd = getUrlParameter("id", 0);
+    $.ajax({
+        url: "/api/person_info",
+        data: {id: parseInt(idd, 10) ? parseInt(idd, 10) : 0},
+        timeout: 5000
+    })
+    .done(function(data, textStatus, jqXHR) {
+        //
+        //console.log(data.data);
+        //$('#test').text("success");
+        if(data.error != null) {
+            console.log(data.error);
+            $('#test').text(data.error);
+            return;
+        }
+        $('#ndoc').text( data.data.ndoc);
+        $('#fio').text( data.data.fio);
+        var html = "";
+        $('#prplist').empty();
+        data.data.prps.forEach(function(item, i, arr){
+            html = html + prpRow(item);
+        });
+        $('#prplist').html(html);
+    })
+    .fail(function(data, textStatus, jqXHR) {
+        console.log(data);
+        $('#test').text("fail");
+    })
+    ;
+}
+
+//возращает текущую дату по стандарту ISO
+function currentDate() {
+    return (new Date()).toISOString().substr(0, 10)
+}
+
+//return html
+function prpRow(item) {
+    var res = `<h3>ПРП №${item.num}, срок действия с ${item.dtbeg} по ${item.dtend}<a href="/prp?id=${item.id}"><img src="/static/ic_mode_edit_black_18dp.png" title="Редактировать список лекарств"></a></h3>`;
+    item.visits.forEach( function(itm,i,arr){
+        res = res + `<div class="container"><a href="/visit?id=${itm.id}">Визит от ${itm.dt}</a></div>`;
+    } );
+    res = res + `<div class="container"><a id="add${item.id}" href="/visit?dt=${currentDate()}&id_prp=${item.id}">Добавить визит <img src="/static/ic_group_add_black_18dp.png" title="Добавить визит"/></a> на дату<input type="date" id="dt${item.id}" oninput="buildlink('${item.id}');" value="${currentDate()}"/></div>`;
+    res += "<hr/>";
+    return res;
+}
+
+//создает правильную ссылку для "Добавить визит"
+function buildlink(idd){
+    try {
+        var dt = document.getElementById("dt"+idd).value;
+        document.getElementById("add"+idd).href = `/visit?dt=${dt}&id_prp=${idd}`;
+    }
+    catch(e){
+        console.log(e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+    datareload();
+});
+</script>
+</head>
+<body>
+{{template "common_header"}}
+
+<div class="wrap">
+<div class="container">
+<h2 align="center"><span id="ndoc"></span>&nbsp;<span id="fio"></span></h2>
+</div>
+<hr/>
+<div class="container" id="prplist">
+</div>
+</div>
+
+</body>
+</html>

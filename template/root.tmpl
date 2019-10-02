@@ -1,48 +1,67 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+{{template "common_resources"}}
 <title>ОЛС - Обеспечение лекарственными средствами</title>
-<link type="text/css" rel="stylesheet" href="/static/style.css">
-<script type="text/javascript" src="/static/jquery-3.4.1.min.js"></script>
 
 </head>
 <body>
+{{template "common_header"}}
 <div class="wrap">
 <div class="container">
-<input type="text" id="search_string" placeholder="ФИО/номер дела (минимум 3 символа)" size="100">
+<input type="text" id="search_string" placeholder="ФИО/номер дела" size="100">
 <div id="test"></div>
 </div>
 <div class="container">
 <table class="datatable" id="search_result" width="50%"> 
 <thead>
 <tr>
-<td class="datacell">Номер дела</td>
-<td class="datacell">ФИО</td>
+<td class="datacell" width="25%">Номер дела</td>
+<td class="datacell" width="75%">ФИО</td>
 </tr></thead>
-</div>
-</div>
+<tbody></tbody>
 </table>
+</div>
+</div>
 <script>
 var last_search_string = "";
 $('#search_string').change(function(event) {
+	if ($('#search_string').val() == "") {return;}
 	if ($('#search_string').val() != last_search_string) {
+		$('#test').text("");
 		last_search_string = $('#search_string').val();
-		console.log($('#search_string').val());
+		//console.log($('#search_string').val());
 		//$('#test').text( $('#search_string').val() );
 		//ajax
 		$.ajax({
-			url: "/api/search",
-			data: {search_string: last_search_string},
+			url: "/api/person_search",
+			data: {search: last_search_string},
 			timeout: 5000
 		})
 		.done(function(data, textStatus, jqXHR) {
-			console.log(data);
-			$('#test').text("success");
+			//console.log(data.error);
+			//console.log(data.data);
+			//$('#test').text("success");
+			if(data.error != null) {
+				$('#test').text(data.error);
+			}
+			$('#search_result tbody').empty();
+            data.data.forEach( function(item, i, arr){
+            	var tr = document.createElement("tr");
+				var td = document.createElement("td");
+				td.appendChild(document.createTextNode(item.ndoc));
+				tr.appendChild(td);
+				var td = document.createElement("td");
+				var a = document.createElement("a");
+				a.setAttribute("href","/person?id="+item.id)
+				a.appendChild(document.createTextNode(item.fio));
+				td.appendChild(a);
+				tr.appendChild(td);
+				$('#search_result tbody').append(tr);
+            } );
 		})
 		.fail(function(data, textStatus, jqXHR) {
 			console.log(data);
-			console.log(textStatus);
 			$('#test').text("fail");
 		})
 		;

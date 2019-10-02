@@ -1,0 +1,36 @@
+{{define "common_resources"}}
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link type="text/css" rel="stylesheet" href="/static/style.css">
+<script type="text/javascript" src="/static/jquery-3.4.1.min.js"></script>
+
+<script>
+function getUrlParameter(sParam, defaultValue) {
+    var sPageURL = window.location.search.substring(1),
+        sURLVariables = sPageURL.split('&'),
+        sParameterName,
+        i;
+
+    for (i = 0; i < sURLVariables.length; i++) {
+        sParameterName = sURLVariables[i].split('=');
+
+        if (sParameterName[0] === sParam) {
+            return decodeURIComponent(sParameterName[1]);
+        }
+    }
+    return defaultValue;
+};
+</script>
+
+{{end}}
+
+{{define "common_header"}}
+<div width="100%">
+<table width="100%">
+<tr>
+<td><a href="/">Люди</a></td>
+<td><a href="/farm">Тест1</a></td>
+<td><a href="/farm">Тест2</a></td>
+</tr>
+</table>
+</div>
+{{end}}
