@@ -1,13 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"text/template"
 	"time"
 )
+
+var dbkeeper DBKeeper
 
 func JsonApiHandle(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -20,21 +21,24 @@ func JsonApiHandle(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(res))
 }
 
-func RootHandle(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("./template/root.tmpl")
-	if err != nil {
-		log.Printf("Ошибка парсинга шаблона (template/root.tmpl): %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Template parsing error"))
-		return
+func UIHandle(filepath string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tmpl, err := template.ParseFiles(filepath, "./template/common_header.tmpl")
+		if err != nil {
+			log.Printf("Ошибка парсинга шаблона (%s): %v", filepath, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Template parsing error"))
+			return
+		}
+		err = tmpl.Execute(w, nil)
+		if err != nil {
+			log.Printf("Ошибка рендеринга шаблона (%s): %v", filepath, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Template rendering error"))
+			return
+		}
 	}
-	err = tmpl.Execute(w, nil)
-	if err != nil {
-		log.Printf("Ошибка рендеринга шаблона (template/root.tmpl): %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Template rendering error"))
-		return
-	}
+
 }
 
 func main() {
@@ -60,14 +64,15 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	dbkeeper := NewDBKeeper(cfg.Database)
-	fmt.Println(dbkeeper.isAlive())
-
+	dbkeeper = NewDBKeeper(cfg.Database)
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.StripPrefix("/static/",
 		http.FileServer(http.Dir("./static/"))))
-	mux.HandleFunc("/api/", JsonApiHandle)
-	mux.HandleFunc("/", RootHandle)
+	//mux.HandleFunc("/api/", JsonApiHandle)
+	mux.HandleFunc("/", UIHandle("./template/root.tmpl"))
+	mux.HandleFunc("/person", UIHandle("./template/person.tmpl"))
+	mux.HandleFunc("/api/person_search", JsonApiFindPerson)
+	mux.HandleFunc("/api/person_info", JsonApiPersonInfo)
 
 	s := &http.Server{
 		Addr:           cfg.ListenAddress,
