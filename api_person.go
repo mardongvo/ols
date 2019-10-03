@@ -43,7 +43,11 @@ func JsonApiPersonInfo(w http.ResponseWriter, r *http.Request) {
 		log.Printf("JsonApiPersonInfo: error %v", err)
 		return
 	}
-	w.Write(data)
+	_, err = w.Write(data)
+	if err != nil {
+		log.Printf("JsonApiPersonInfo: write error %v", err)
+		return
+	}
 }
 
 func (dk *DBKeeper) GetPersonInfo(id int) DBResult {
@@ -100,7 +104,7 @@ func (dk *DBKeeper) GetPersonInfo(id int) DBResult {
 			resultError = err
 		}
 		tmp.Dt = fmt.Sprintf("%02d.%02d.%04d", dt.Day(), dt.Month(), dt.Year())
-		for i, _ := range resultData.PrpList {
+		for i := range resultData.PrpList {
 			if resultData.PrpList[i].Id == idPrp {
 				resultData.PrpList[i].VisitList = append(resultData.PrpList[i].VisitList, tmp)
 			}
