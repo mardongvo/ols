@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+{{template "common_resources"}}
+<title>ОЛС - Обеспечение лекарственными средствами</title>
+<script>
+
+function updatePage(data) {
+    if(data.error != null) {
+        console.log(data.error);
+        return;
+    }
+    $('#person_ndoc').text( data.data.person_ndoc);
+    $('#person_fio').text( data.data.person_fio);
+    $('#person_id').attr("href", "/person?id="+data.data.person_id.toString() );
+    $('#num').text( data.data.num);
+    $('#dtbeg').text( data.data.dtbeg);
+    $('#dtend').text( data.data.dtend);
+    $('#prp_rows').empty();
+    data.data.rows.forEach(function(item, i, arr){
+        var tr = $("<tr/>", {name:"row",id: item.id})
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"text",name:"name",width:"99%","value":item.name}) }) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"count",width:"99%","value":item.count}) }) );
+        $('#prp_rows').append(tr);
+    });
+}
+
+function dataReload(){
+    var idd = getUrlParameter("id", 0);
+    $.ajax({
+        url: "/api/prp_info",
+        data: {id: parseInt(idd, 10) ? parseInt(idd, 10) : 0},
+        timeout: 5000
+    })
+    .done(function(data, textStatus, jqXHR) {
+        updatePage(data);
+    })
+    .fail(function(data, textStatus, jqXHR) {
+        console.log(data);
+        $('#test').text("fail");
+    })
+    ;
+}
+
+function save() {
+    var idd = getUrlParameter("id", 0);
+    var saverows = [];
+    $('tr[name="row"]').each(function(){
+        saverows.push(
+        {id: parseInt($(this).attr("id"),10) ? parseInt($(this).attr("id"),10) : 0,
+        name: $(this).find('input[name="name"]').val(),
+        count: parseInt($(this).find('input[name="count"]').val(),10) ? parseInt($(this).find('input[name="count"]').val(),10) : 0
+        });
+    });
+    console.log({id: parseInt(idd, 10) ? parseInt(idd, 10) : 0, rows: saverows});
+    $.ajax({
+        url: "/api/prp_save",
+        method: "POST",
+        data: JSON.stringify({id: parseInt(idd, 10) ? parseInt(idd, 10) : 0, rows: saverows}),
+        timeout: 5000
+    })
+    .done(function(data, textStatus, jqXHR) {
+        updatePage(data);
+    })
+    .fail(function(data, textStatus, jqXHR) {
+        console.log(data);
+        $('#test').text("fail");
+    })
+    ;
+}
+
+function addRow() {
+    var tr = $("<tr/>", {name:"row",id: 0})
+    tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"text",name:"name",width:"99%"}) }) );
+    tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"count",width:"99%",value:0}) }) );
+    $('#prp_rows').append(tr);
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+    dataReload();
+});
+
+</script>
+</head>
+<body>
+{{template "common_header"}}
+
+<div class="wrap">
+<div class="container">
+<h2 align="center"><a href="" id="person_id"><span id="person_ndoc"></span>&nbsp;<span id="person_fio"></span></a></h2>
+<h2 align="center">ПРП №<span id="num"></span>, срок действия с <span id="dtbeg"></span> по <span id="dtend"></span></h2>
+</div>
+<hr/>
+<div class="container">
+<table class="datatable" width="100%"> 
+<thead>
+<tr>
+<td class="datacell" width="75%">Название</td>
+<td class="datacell" width="25%">Количество</td>
+</tr></thead>
+<tbody id="prp_rows"></tbody>
+</table>
+
+<br/>
+
+<button onclick="addRow(); return false;">Добавить строку</button>
+<button onclick="save(); return false;">Сохранить</button>
+</div>
+
+</div>
+
+</body>
+</html>
