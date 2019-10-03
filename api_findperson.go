@@ -30,7 +30,11 @@ func JsonApiFindPerson(w http.ResponseWriter, r *http.Request) {
 		log.Printf("JsonApiFindPerson: error %v", err)
 		return
 	}
-	w.Write(data)
+	_, err = w.Write(data)
+	if err != nil {
+		log.Printf("JsonApiFindPerson: write error %v", err)
+		return
+	}
 }
 
 //API
