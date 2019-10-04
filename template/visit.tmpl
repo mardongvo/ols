@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+{{template "common_resources"}}
+<title>ОЛС - Обеспечение лекарственными средствами</title>
+<script>
+
+function markchange() {
+    this.style.color = "#FF0000";
+    recalc();
+}
+
+function floatView(v) {
+    return (Math.round(v*100)/100).toFixed(2)
+}
+
+function updatePage(data) {
+    if(data.error != null) {
+        console.log(data.error);
+        return;
+    }
+    console.log(data.data);
+    $('#person_ndoc').text( data.data.person_ndoc);
+    $('#person_fio').text( data.data.person_fio);
+    $('#person_id').attr("href", "/person?id="+data.data.person_id.toString() );
+    $('#prp_num').text( data.data.prp_num);
+    $('#prp_dtbeg').text( data.data.prp_dtbeg);
+    $('#prp_dtend').text( data.data.prp_dtend);
+    $('#dt').text( data.data.dt);
+    $('#visit_rows').empty();
+    data.data.rows.forEach(function(item, i, arr){
+        var tr = $("<tr/>", {name:"row",id: item.id})
+        tr.append( $("<td/>", {class:"datacell", text: item.name}) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type: "text", name: "paydt", width: "99%", "value": item.paydt, on:{ input: markchange } }) }) );
+        tr.append( $("<td/>", {class:"datacell", text: item.prp_count, name: "prp_count"}) );
+        tr.append( $("<td/>", {class:"datacell", text: item.prev_count, name: "prev_count"}) );
+        tr.append( $("<td/>", {class:"datacell", text: item.prev_count_saved}) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"count",width:"99%","value":item.count, on:{ input: markchange }}) }) );
+        tr.append( $("<td/>", {class:"datacell", text: "-", name:"pay_count"}) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"price",width:"99%","value":floatView(item.price), step: 0.01, on:{ input: markchange }}) }) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"price_znvlp",width:"99%","value":floatView(item.price_znvlp), step: 0.01, on:{ input: markchange }}) }) );
+        tr.append( $("<td/>", {class:"datacell", text: "-", name:"pay"}) );
+        tr.append( $("<td/>", {class:"datacell", text: "-", name:"notpay"}) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type: "text", name: "reason", width: "99%", "value": item.reason, on:{ input: markchange }}) }) );
+        $('#visit_rows').append(tr);
+    });
+}
+
+function dataReload(){
+    var idd = getUrlParameter("id", 0);
+    $.ajax({
+        url: "/api/visit_info",
+        data: {id: parseInt(idd, 10) ? parseInt(idd, 10) : 0},
+        timeout: 5000
+    })
+    .done(function(data, textStatus, jqXHR) {
+        updatePage(data);
+        recalc();
+    })
+    .fail(function(data, textStatus, jqXHR) {
+        console.log(data);
+        $('#test').text("fail");
+    })
+    ;
+}
+
+function recalc(){
+    var sum_price = 0;
+    var sum_pay = 0;
+    var sum_notpay = 0;
+    $('tr[name="row"]').each(function(){
+        var prp_count = parseInt( $(this).find('td[name="prp_count"]').text() );
+        var prev_count = parseInt( $(this).find('td[name="prev_count"]').text() );
+        var count = parseInt( $(this).find('input[name="count"]').val() );
+        var price = parseFloat( $(this).find('input[name="price"]').val() );
+        var price_znvlp = parseFloat( $(this).find('input[name="price_znvlp"]').val() );
+        var limit = prp_count - prev_count;
+        if (limit < 0) { limit = 0; }
+        //количество к оплате
+        var pay_count = count;
+        if (limit < count) {pay_count = limit;}
+        $(this).find('td[name="pay_count"]').text(pay_count.toFixed(0));
+        //сумма к оплате
+        var pay = price;
+        if (count>0){
+            if ( (price_znvlp>0) && (price_znvlp<(price/count)) ) {
+                pay = Math.round( price_znvlp*pay_count*100)/100;
+            } else {
+                pay = Math.round( price*pay_count/count*100)/100;
+            }
+        }
+        $(this).find('td[name="pay"]').text(pay.toFixed(2));
+        $(this).find('td[name="notpay"]').text((price-pay).toFixed(2));
+        sum_price += price;
+        sum_pay += pay;
+        sum_notpay += (price - pay);
+    });
+    $("#sum_price").text( sum_price.toFixed(2) );
+    $("#sum_pay").text( sum_pay.toFixed(2) );
+    $("#sum_notpay").text( sum_notpay.toFixed(2) );
+}
+
+function save() {
+/*
+    var idd = getUrlParameter("id", 0);
+    var saverows = [];
+    $('tr[name="row"]').each(function(){
+        saverows.push(
+        {id: parseInt($(this).attr("id"),10) ? parseInt($(this).attr("id"),10) : 0,
+        name: $(this).find('input[name="name"]').val(),
+        count: parseInt($(this).find('input[name="count"]').val(),10) ? parseInt($(this).find('input[name="count"]').val(),10) : 0
+        });
+    });
+    console.log({id: parseInt(idd, 10) ? parseInt(idd, 10) : 0, rows: saverows});
+    $.ajax({
+        url: "/api/prp_save",
+        method: "POST",
+        data: JSON.stringify({id: parseInt(idd, 10) ? parseInt(idd, 10) : 0, rows: saverows}),
+        timeout: 5000
+    })
+    .done(function(data, textStatus, jqXHR) {
+        updatePage(data);
+    })
+    .fail(function(data, textStatus, jqXHR) {
+        console.log(data);
+        $('#test').text("fail");
+    })
+    ;
+    */
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+    dataReload();
+});
+
+</script>
+</head>
+<body>
+{{template "common_header"}}
+
+<div class="wrap">
+<div class="container">
+<h2 align="center"><a href="" id="person_id"><span id="person_ndoc"></span>&nbsp;<span id="person_fio"></span></a></h2>
+<h2 align="center">ПРП №<span id="prp_num"></span>, срок действия с <span id="prp_dtbeg"></span> по <span id="prp_dtend"></span></h2>
+<h2 align="center">Визит от <span id="dt"></span></h2>
+</div>
+<hr/>
+<div class="container">
+<table class="datatable" width="100%"> 
+<thead>
+<tr>
+<td class="datacell">Наименование изделия медицинского назначения и лекарственного средства, форма выпуска, доза, количество по ПРП</td>
+<td class="datacell">Дата приобретения лекарственного средства и изделия медицинского назначения</td>
+<td class="datacell">Кол-во на срок действия ПРП</td>
+<td class="datacell">Количество по ПРП (оплачено по пред. визитам)</td>
+<td class="datacell">Количество по ПРП (оплачено по пред. визитам, сохр)</td>
+<td class="datacell">Количество приобретено</td>
+<td class="datacell">Количество, подлежащее оплате в соответствии с ПРП</td>
+<td class="datacell">Сумма по товарному чеку</td>
+<td class="datacell">Цена лекарственного средства в Гос. Реестре предельных отпускных цен производителей на лекарственные препараты, включенные в перечень ЖНВЛП</td>
+<td class="datacell">К оплате (руб.), подпись специалиста филиала</td>
+<td class="datacell">Сумма недоплаты</td>
+<td class="datacell">Примечание (указать причину неисполнения и др.)</td>
+</tr></thead>
+<tbody id="visit_rows"></tbody>
+<tfoot id="visit_summary">
+
+<td class="datacell"></td>
+<td class="datacell"></td>
+<td class="datacell"></td>
+<td class="datacell"></td>
+<td class="datacell"></td>
+<td class="datacell"></td>
+<td class="datacell"></td>
+<td class="datacell" id="sum_price">0,00</td>
+<td class="datacell"></td>
+<td class="datacell" id="sum_pay">0,00</td>
+<td class="datacell" id="sum_notpay">0,00</td>
+<td class="datacell"></td>
+
+
+</tfoot>
+</table>
+
+<br/>
+
+<button onclick="save(); return false;">Сохранить</button>
+</div>
+
+</div>
+
+</body>
+</html>
