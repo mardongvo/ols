@@ -71,8 +71,13 @@ func main() {
 	//mux.HandleFunc("/api/", JsonApiHandle)
 	mux.HandleFunc("/", UIHandle("./template/root.tmpl"))
 	mux.HandleFunc("/person", UIHandle("./template/person.tmpl"))
+	mux.HandleFunc("/prp", UIHandle("./template/prp.tmpl"))
+	mux.HandleFunc("/visit", UIHandle("./template/visit.tmpl"))
 	mux.HandleFunc("/api/person_search", JsonApiFindPerson)
 	mux.HandleFunc("/api/person_info", JsonApiPersonInfo)
+	mux.HandleFunc("/api/prp_info", JsonApiPrpInfo)
+	mux.HandleFunc("/api/prp_save", JsonApiPrpSave)
+	mux.HandleFunc("/api/visit_info", JsonApiVisitInfo)
 
 	s := &http.Server{
 		Addr:           cfg.ListenAddress,
