@@ -78,6 +78,7 @@ func main() {
 	mux.HandleFunc("/api/prp_info", JsonApiPrpInfo)
 	mux.HandleFunc("/api/prp_save", JsonApiPrpSave)
 	mux.HandleFunc("/api/visit_info", JsonApiVisitInfo)
+	mux.HandleFunc("/api/visit_save", JsonApiVisitSave)
 
 	s := &http.Server{
 		Addr:           cfg.ListenAddress,

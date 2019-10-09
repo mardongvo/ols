@@ -1,15 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
-
-	//"io/ioutil"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 )
+
+const DateLayout = "2006-01-02"
 
 type VisitRow struct {
 	Id             int     `json:"id"` //prp_template id
@@ -43,20 +45,78 @@ type VisitSaveRequest struct {
 	Rows []VisitRow `json:"rows"`
 }
 
+type VisitAddResponse struct {
+	Id int `json:"id"`
+}
+
 func JsonApiVisitInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var res DBResult
-	idd, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 32)
+	var tmp int
+	var dt string
+	var idPrp, idd int64
+	var err error
+	idd, err = strconv.ParseInt(r.URL.Query().Get("id"), 10, 32)
 	if err != nil {
 		idd = 0
 	}
-	res = dbkeeper.GetVisitInfo(int(idd))
+	dt = r.URL.Query().Get("dt")
+	idPrp, err = strconv.ParseInt(r.URL.Query().Get("id_prp"), 10, 32)
+	if err != nil {
+		idPrp = 0
+	}
+	if (idPrp > 0) && (dt > "") {
+		tmp, err = dbkeeper.AddVisit(int(idPrp), dt)
+		if err != nil {
+			res = DBResult{err, nil}
+		} else {
+			res = DBResult{nil, VisitAddResponse{tmp}}
+		}
+	} else {
+		res = dbkeeper.GetVisitInfo(int(idd))
+	}
 	data, err := json.Marshal(res)
 	if err != nil {
 		log.Printf("JsonApiVisitInfo: error %v", err)
 		return
 	}
 	w.Write(data)
+}
+
+func JsonApiVisitSave(w http.ResponseWriter, r *http.Request) {
+	var res DBResult
+	var rq VisitSaveRequest
+	inp, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("JsonApiVisitSave(1): error %v", err)
+		res = DBResult{fmt.Errorf("%v", err), nil}
+		goto END
+	}
+	err = json.Unmarshal(inp, &rq)
+	if err != nil {
+		log.Printf("JsonApiVisitSave(2): error %v", err)
+		res = DBResult{fmt.Errorf("%v", err), nil}
+		goto END
+	}
+	err = dbkeeper.SaveVisitInfo(rq)
+	if err != nil {
+		log.Printf("JsonApiVisitSave(3): error %v", err)
+		res = DBResult{fmt.Errorf("%v", err), nil}
+		goto END
+	}
+	res = dbkeeper.GetVisitInfo(rq.Id)
+END:
+	data, err := json.Marshal(res)
+	if err != nil {
+		log.Printf("JsonApiVisitSave(4): error %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(data)
+	if err != nil {
+		log.Printf("JsonApiVisitSave: write error %v", err)
+		return
+	}
 }
 
 func (dk *DBKeeper) GetVisitInfo(id int) DBResult {
@@ -116,4 +176,85 @@ func (dk *DBKeeper) GetVisitInfo(id int) DBResult {
 	}
 	///////
 	return DBResult{resultError, resultData}
+}
+
+func (dk *DBKeeper) SaveVisitInfo(rq VisitSaveRequest) error {
+	tx, err := dk.db.Begin()
+	if err != nil {
+		log.Printf("DBKeeper.SaveVisitInfo(1): begin tx error: %v\n", err)
+		return err
+	}
+	for _, v := range rq.Rows {
+		_, err := tx.Exec(`update visit_info set cnt=$1, price=$2, price_znvlp=$3,
+			reason=$4::varchar, paydt=$5::varchar where id_prpt=$6 and id_own=$7;`,
+			v.Count, v.Price, v.PriceZnvlp, v.Reason, v.PayDt, v.Id, rq.Id)
+		if err != nil {
+			tx.Rollback()
+			log.Printf("DBKeeper.SaveVisitInfo(2): update error: %v\n", err)
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (dk *DBKeeper) AddVisit(idPrp int, dt string) (int, error) {
+	var err error
+	var tx *sql.Tx
+	var row *sql.Row
+	var visitId int
+	var dtParsed time.Time
+	//проверяем строку даты на соответствие формату YYYY-MM-DD
+	dtParsed, err = time.Parse(DateLayout, dt)
+	if err != nil {
+		log.Printf("DBKeeper.AddVisit(0): date parse error: %v\n", err)
+		return 0, err
+	}
+	//открываем транзакцию
+	tx, err = dk.db.Begin()
+	if err != nil {
+		log.Printf("DBKeeper.AddVisit(1): begin tx error: %v\n", err)
+		return 0, err
+	}
+	//добавялем визит на дату, если его не существует
+	_, err = tx.Exec(`insert into visit(id_prp, id_own, dt)
+		select $1, id_own, $2 from prp where id=$1 and not exists (
+			select id from visit where id_prp=$1 and dt=$2
+		);`, idPrp, dtParsed)
+	if err != nil {
+		log.Printf("DBKeeper.AddVisit(2): error: %v\n", err)
+		tx.Rollback()
+		return 0, err
+	}
+	//получаем Id визита
+	row = tx.QueryRow("select id from visit where id_prp=$1 and dt=$2;",
+		idPrp, dtParsed)
+	err = row.Scan(&visitId)
+	if err != nil {
+		log.Printf("DBKeeper.AddVisit(3): error: %v\n", err)
+		tx.Rollback()
+		return 0, err
+	}
+	if visitId == 0 {
+		tx.Rollback()
+		return 0, fmt.Errorf("Ошибка добавления визита: visitId = 0")
+	}
+	//добавляем строки из шаблона ПРП только если их еще нет
+	_, err = tx.Exec(`
+	with c as (select id_prpt, sum(cnt) cnt from visit_info where
+	 id_own in (select id from visit where id_prp=$1 and dt<$2) group by id_prpt)
+	insert into visit_info(id_own, id_prpt, paydt, cnt, price, price_znvlp,
+						reason, prevcnt)
+		select $3, id, '', 0, 0, 0, '', coalesce(c.cnt, 0) from prp_template
+            left outer join c on (c.id_prpt=prp_template.id)
+        where prp_template.id_own=$1 and
+            not exists (select 1 from visit_info where visit_info.id_own=$3
+            and visit_info.id_prpt=prp_template.id);
+	`, idPrp, dtParsed, visitId)
+	if err != nil {
+		log.Printf("DBKeeper.AddVisit(4): error: %v\n", err)
+		tx.Rollback()
+		return 0, err
+	}
+	err = tx.Commit()
+	return visitId, err
 }
