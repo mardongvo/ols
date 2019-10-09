@@ -13,13 +13,13 @@
 <div id="test"></div>
 </div>
 <div class="container">
-<table class="datatable" id="search_result" width="50%"> 
+<table class="datatable" width="50%"> 
 <thead>
 <tr>
 <td class="datacell" width="25%">Номер дела</td>
 <td class="datacell" width="75%">ФИО</td>
 </tr></thead>
-<tbody></tbody>
+<tbody id="search_result"></tbody>
 </table>
 </div>
 </div>
@@ -45,19 +45,12 @@ $('#search_string').change(function(event) {
 			if(data.error != null) {
 				$('#test').text(data.error);
 			}
-			$('#search_result tbody').empty();
+			$('#search_result').empty();
             data.data.forEach( function(item, i, arr){
-            	var tr = document.createElement("tr");
-				var td = document.createElement("td");
-				td.appendChild(document.createTextNode(item.ndoc));
-				tr.appendChild(td);
-				var td = document.createElement("td");
-				var a = document.createElement("a");
-				a.setAttribute("href","/person?id="+item.id)
-				a.appendChild(document.createTextNode(item.fio));
-				td.appendChild(a);
-				tr.appendChild(td);
-				$('#search_result tbody').append(tr);
+                var tr = $("<tr/>")
+                tr.append($("<td>", {class:"datacell", text: item.ndoc}));
+                tr.append($("<td>", {class:"datacell", append: $("<a>", {href:"/person?id="+item.id, text:item.fio }) }));
+				$('#search_result').append(tr);
             } );
 		})
 		.fail(function(data, textStatus, jqXHR) {
