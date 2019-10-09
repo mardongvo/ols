@@ -19,7 +19,7 @@ function updatePage(data) {
         console.log(data.error);
         return;
     }
-    console.log(data.data);
+    //console.log(data.data);
     $('#person_ndoc').text( data.data.person_ndoc);
     $('#person_fio').text( data.data.person_fio);
     $('#person_id').attr("href", "/person?id="+data.data.person_id.toString() );
@@ -31,30 +31,40 @@ function updatePage(data) {
     data.data.rows.forEach(function(item, i, arr){
         var tr = $("<tr/>", {name:"row",id: item.id})
         tr.append( $("<td/>", {class:"datacell", text: item.name}) );
-        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type: "text", name: "paydt", width: "99%", "value": item.paydt, on:{ input: markchange } }) }) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type: "text", name: "paydt", width: "95%", "value": item.paydt, on:{ input: markchange } }) }) );
         tr.append( $("<td/>", {class:"datacell", text: item.prp_count, name: "prp_count"}) );
         tr.append( $("<td/>", {class:"datacell", text: item.prev_count, name: "prev_count"}) );
         tr.append( $("<td/>", {class:"datacell", text: item.prev_count_saved}) );
-        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"count",width:"99%","value":item.count, on:{ input: markchange }}) }) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"count",width:"95%","value":item.count, on:{ input: markchange }}) }) );
         tr.append( $("<td/>", {class:"datacell", text: "-", name:"pay_count"}) );
-        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"price",width:"99%","value":floatView(item.price), step: 0.01, on:{ input: markchange }}) }) );
-        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"price_znvlp",width:"99%","value":floatView(item.price_znvlp), step: 0.01, on:{ input: markchange }}) }) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"price",width:"95%","value":floatView(item.price), step: 0.01, on:{ input: markchange }}) }) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"price_znvlp",width:"95%","value":floatView(item.price_znvlp), step: 0.01, on:{ input: markchange }}) }) );
         tr.append( $("<td/>", {class:"datacell", text: "-", name:"pay"}) );
         tr.append( $("<td/>", {class:"datacell", text: "-", name:"notpay"}) );
-        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type: "text", name: "reason", width: "99%", "value": item.reason, on:{ input: markchange }}) }) );
+        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type: "text", name: "reason", width: "95%", "value": item.reason, on:{ input: markchange }}) }) );
         $('#visit_rows').append(tr);
     });
 }
 
 function dataReload(){
-    var idd = getUrlParameter("id", 0);
+    var idd = safeInt(getUrlParameter("id", 0),0);
+    var id_prp = safeInt(getUrlParameter("id_prp", 0),0);
+    var dt = getUrlParameter("dt", "");
     $.ajax({
         url: "/api/visit_info",
-        data: {id: parseInt(idd, 10) ? parseInt(idd, 10) : 0},
+        data: {id: idd, id_prp: id_prp, dt: dt},
         timeout: 5000
     })
     .done(function(data, textStatus, jqXHR) {
-        updatePage(data);
+        if (id_prp > 0) {
+            if (data.data != null) {
+                window.location.replace("/visit?id="+data.data.id);
+                //noew leave page
+            }
+        }
+        if (idd > 0) {
+            updatePage(data);
+        }
         recalc();
     })
     .fail(function(data, textStatus, jqXHR) {
@@ -69,11 +79,11 @@ function recalc(){
     var sum_pay = 0;
     var sum_notpay = 0;
     $('tr[name="row"]').each(function(){
-        var prp_count = parseInt( $(this).find('td[name="prp_count"]').text() );
-        var prev_count = parseInt( $(this).find('td[name="prev_count"]').text() );
-        var count = parseInt( $(this).find('input[name="count"]').val() );
-        var price = parseFloat( $(this).find('input[name="price"]').val() );
-        var price_znvlp = parseFloat( $(this).find('input[name="price_znvlp"]').val() );
+        var prp_count = safeInt( $(this).find('td[name="prp_count"]').text(), 0 );
+        var prev_count = safeInt( $(this).find('td[name="prev_count"]').text(), 0 );
+        var count = safeInt( $(this).find('input[name="count"]').val(), 0 );
+        var price = safeFloat( $(this).find('input[name="price"]').val(), 0.0 );
+        var price_znvlp = safeFloat( $(this).find('input[name="price_znvlp"]').val(), 0.0 );
         var limit = prp_count - prev_count;
         if (limit < 0) { limit = 0; }
         //количество к оплате
@@ -101,32 +111,34 @@ function recalc(){
 }
 
 function save() {
-/*
     var idd = getUrlParameter("id", 0);
     var saverows = [];
     $('tr[name="row"]').each(function(){
         saverows.push(
-        {id: parseInt($(this).attr("id"),10) ? parseInt($(this).attr("id"),10) : 0,
-        name: $(this).find('input[name="name"]').val(),
-        count: parseInt($(this).find('input[name="count"]').val(),10) ? parseInt($(this).find('input[name="count"]').val(),10) : 0
+        {id: safeInt($(this).attr("id"),0),
+        paydt: $(this).find('input[name="paydt"]').val(),
+        reason: $(this).find('input[name="reason"]').val(),
+        count: safeInt($(this).find('input[name="count"]').val(), 0),
+        price: parseFloat( $(this).find('input[name="price"]').val(), 0.0 ),
+        price_znvlp: parseFloat( $(this).find('input[name="price_znvlp"]').val(), 0.0 )
         });
     });
-    console.log({id: parseInt(idd, 10) ? parseInt(idd, 10) : 0, rows: saverows});
+    console.log({id: safeInt(idd, 0), rows: saverows});
     $.ajax({
-        url: "/api/prp_save",
+        url: "/api/visit_save",
         method: "POST",
-        data: JSON.stringify({id: parseInt(idd, 10) ? parseInt(idd, 10) : 0, rows: saverows}),
+        data: JSON.stringify({id: safeInt(idd), rows: saverows}),
         timeout: 5000
     })
     .done(function(data, textStatus, jqXHR) {
         updatePage(data);
+        recalc();
     })
     .fail(function(data, textStatus, jqXHR) {
         console.log(data);
         $('#test').text("fail");
     })
     ;
-    */
 }
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -157,7 +169,8 @@ document.addEventListener("DOMContentLoaded", function(){
 <td class="datacell">Количество приобретено</td>
 <td class="datacell">Количество, подлежащее оплате в соответствии с ПРП</td>
 <td class="datacell">Сумма по товарному чеку</td>
-<td class="datacell">Цена лекарственного средства в Гос. Реестре предельных отпускных цен производителей на лекарственные препараты, включенные в перечень ЖНВЛП</td>
+<!---td class="datacell">Цена лекарственного средства в Гос. Реестре предельных отпускных цен производителей на лекарственные препараты, включенные в перечень ЖНВЛП</td--->
+<td class="datacell">Предельная цена лекарственного средства в гос. реестре ЖНВЛП</td>
 <td class="datacell">К оплате (руб.), подпись специалиста филиала</td>
 <td class="datacell">Сумма недоплаты</td>
 <td class="datacell">Примечание (указать причину неисполнения и др.)</td>
