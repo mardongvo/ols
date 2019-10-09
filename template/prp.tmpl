@@ -29,7 +29,7 @@ function dataReload(){
     var idd = getUrlParameter("id", 0);
     $.ajax({
         url: "/api/prp_info",
-        data: {id: parseInt(idd, 10) ? parseInt(idd, 10) : 0},
+        data: {id: safeInt(idd, 0)},
         timeout: 5000
     })
     .done(function(data, textStatus, jqXHR) {
@@ -47,16 +47,16 @@ function save() {
     var saverows = [];
     $('tr[name="row"]').each(function(){
         saverows.push(
-        {id: parseInt($(this).attr("id"),10) ? parseInt($(this).attr("id"),10) : 0,
+        {id: safeInt($(this).attr("id"),0),
         name: $(this).find('input[name="name"]').val(),
-        count: parseInt($(this).find('input[name="count"]').val(),10) ? parseInt($(this).find('input[name="count"]').val(),10) : 0
+        count: safeInt($(this).find('input[name="count"]').val(), 0)
         });
     });
-    console.log({id: parseInt(idd, 10) ? parseInt(idd, 10) : 0, rows: saverows});
+    console.log({id: safeInt(idd, 0), rows: saverows});
     $.ajax({
         url: "/api/prp_save",
         method: "POST",
-        data: JSON.stringify({id: parseInt(idd, 10) ? parseInt(idd, 10) : 0, rows: saverows}),
+        data: JSON.stringify({id: safeInt(idd, 0), rows: saverows}),
         timeout: 5000
     })
     .done(function(data, textStatus, jqXHR) {
