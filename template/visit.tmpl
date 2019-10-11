@@ -27,6 +27,7 @@ function updatePage(data) {
     $('#prp_dtbeg').text( data.data.prp_dtbeg);
     $('#prp_dtend').text( data.data.prp_dtend);
     $('#dt').text( data.data.dt);
+    $('#xls_export').attr("href", "/visit.xlsx?id="+data.data.id.toString() );
     $('#visit_rows').empty();
     data.data.rows.forEach(function(item, i, arr){
         var tr = $("<tr/>", {name:"row",id: item.id})
@@ -198,6 +199,8 @@ document.addEventListener("DOMContentLoaded", function(){
 <br/>
 
 <button onclick="save(); return false;">Сохранить</button>
+<button onclick="save(); return false;">Сохранить</button><br/>
+<a target="_blank" id="xls_export" href="/visit.xlsx">Выгрузить в Excel</a>
 </div>
 
 </div>
