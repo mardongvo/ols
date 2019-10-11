@@ -179,26 +179,18 @@ document.addEventListener("DOMContentLoaded", function(){
 <tbody id="visit_rows"></tbody>
 <tfoot id="visit_summary">
 
+<td class="datacell" style="font-weight: bold;" colspan="7">Итого</td>
+<td class="datacell" id="sum_price" style="font-weight: bold;">0,00</td>
 <td class="datacell"></td>
+<td class="datacell" id="sum_pay" style="font-weight: bold;">0,00</td>
+<td class="datacell" id="sum_notpay" style="font-weight: bold;">0,00</td>
 <td class="datacell"></td>
-<td class="datacell"></td>
-<td class="datacell"></td>
-<td class="datacell"></td>
-<td class="datacell"></td>
-<td class="datacell"></td>
-<td class="datacell" id="sum_price">0,00</td>
-<td class="datacell"></td>
-<td class="datacell" id="sum_pay">0,00</td>
-<td class="datacell" id="sum_notpay">0,00</td>
-<td class="datacell"></td>
-
 
 </tfoot>
 </table>
 
 <br/>
 
-<button onclick="save(); return false;">Сохранить</button>
 <button onclick="save(); return false;">Сохранить</button><br/>
 <a target="_blank" id="xls_export" href="/visit.xlsx">Выгрузить в Excel</a>
 </div>
