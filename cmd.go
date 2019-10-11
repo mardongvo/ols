@@ -73,6 +73,7 @@ func main() {
 	mux.HandleFunc("/person", UIHandle("./template/person.tmpl"))
 	mux.HandleFunc("/prp", UIHandle("./template/prp.tmpl"))
 	mux.HandleFunc("/visit", UIHandle("./template/visit.tmpl"))
+	mux.HandleFunc("/visit.xlsx", ApiGetXls)
 	mux.HandleFunc("/api/person_search", JsonApiFindPerson)
 	mux.HandleFunc("/api/person_info", JsonApiPersonInfo)
 	mux.HandleFunc("/api/prp_info", JsonApiPrpInfo)
