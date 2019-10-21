@@ -49,6 +49,10 @@ type VisitAddResponse struct {
 	Id int `json:"id"`
 }
 
+type VisitRemoveRequest struct {
+	Id int `json:"id"`
+}
+
 func JsonApiVisitInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var res DBResult
@@ -81,6 +85,42 @@ func JsonApiVisitInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(data)
+}
+
+func JsonApiVisitRemove(w http.ResponseWriter, r *http.Request) {
+	var res DBResult
+	var rq VisitRemoveRequest
+	inp, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("JsonApiVisitRemove(1): error %v", err)
+		res = DBResult{fmt.Errorf("%v", err), nil}
+		goto END
+	}
+	err = json.Unmarshal(inp, &rq)
+	if err != nil {
+		log.Printf("JsonApiVisitRemove(2): error %v", err)
+		res = DBResult{fmt.Errorf("%v", err), nil}
+		goto END
+	}
+	err = dbkeeper.RemoveVisitInfo(rq.Id, true)
+	if err != nil {
+		log.Printf("JsonApiVisitRemove(3): error %v", err)
+		res = DBResult{fmt.Errorf("%v", err), nil}
+		goto END
+	}
+	res = DBResult{nil, nil}
+END:
+	data, err := json.Marshal(res)
+	if err != nil {
+		log.Printf("JsonApiVisitRemove(4): error %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(data)
+	if err != nil {
+		log.Printf("JsonApiVisitRemove: write error %v", err)
+		return
+	}
 }
 
 func JsonApiVisitSave(w http.ResponseWriter, r *http.Request) {
@@ -191,6 +231,54 @@ func (dk *DBKeeper) SaveVisitInfo(rq VisitSaveRequest) error {
 		if err != nil {
 			tx.Rollback()
 			log.Printf("DBKeeper.SaveVisitInfo(2): update error: %v\n", err)
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (dk *DBKeeper) RemoveVisitInfo(id int, onlyZero bool) error {
+	var tx *sql.Tx
+	var err error
+	var rows *sql.Rows
+	var doRemove bool = true
+	tx, err = dk.db.Begin()
+	if err != nil {
+		log.Printf("DBKeeper.RemoveVisitInfo(1): begin tx error: %v\n", err)
+		return err
+	}
+	rows, err = tx.Query(`select sum(cnt), sum(price), sum(price_znvlp),
+		max(reason), max(paydt) from visit_info where id_own=$1;`, id)
+	if err != nil {
+		log.Printf("DBKeeper.RemoveVisitInfo(2): query error: %v\n", err)
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cnt int
+		var price, pricez float64
+		var reason, paydt string
+		err = rows.Scan(&cnt, &price, &pricez, &reason, &paydt)
+		if err != nil {
+			tx.Rollback()
+			log.Printf("DBKeeper.RemoveVisitInfo(3): scan error: %v\n", err)
+			return err
+		}
+		if cnt > 0 || price > 0 || pricez > 0 || reason > "" || paydt > "" {
+			doRemove = false
+		}
+	}
+	if doRemove {
+		_, err = tx.Exec("delete from visit_info where id_own=$1;", id)
+		if err != nil {
+			tx.Rollback()
+			log.Printf("DBKeeper.RemoveVisitInfo(4): delete error: %v\n", err)
+			return err
+		}
+		_, err = tx.Exec("delete from visit where id=$1;", id)
+		if err != nil {
+			tx.Rollback()
+			log.Printf("DBKeeper.RemoveVisitInfo(5): delete error: %v\n", err)
 			return err
 		}
 	}

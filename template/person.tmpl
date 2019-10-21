@@ -41,11 +41,37 @@ function currentDate() {
     return (new Date()).toISOString().substr(0, 10)
 }
 
+function removeVisit(idd) {
+    $.ajax({
+        url: "/api/visit_remove",
+        method: "POST",
+        data: JSON.stringify({id: idd}),
+        timeout: 5000
+    })
+    .done(function(data, textStatus, jqXHR) {
+        //
+        //console.log(data.data);
+        //$('#test').text("success");
+        if(data.error != null) {
+            console.log(data.error);
+            $('#test').text(data.error);
+            return;
+        }
+        datareload();
+    })
+    .fail(function(data, textStatus, jqXHR) {
+        console.log(data);
+        $('#test').text("fail");
+    })
+    ;
+
+}
+
 //return html
 function prpRow(item) {
     var res = `<h3>ПРП №${item.num}, срок действия с ${item.dtbeg} по ${item.dtend}<a href="/prp?id=${item.id}"><img src="/static/ic_mode_edit_black_18dp.png" title="Редактировать список лекарств"></a></h3>`;
     item.visits.forEach( function(itm,i,arr){
-        res = res + `<div class="container"><a href="/visit?id=${itm.id}">Визит от ${itm.dt}</a></div>`;
+        res = res + `<div class="container"><a href="/visit?id=${itm.id}">Визит от ${itm.dt}</a>&nbsp;[<a href="" onclick="removeVisit(${itm.id}); return false;">удалить пустой</a>]</div>`;
     } );
     res = res + `<div class="container"><a id="add${item.id}" href="/visit?dt=${currentDate()}&id_prp=${item.id}">Добавить визит <img src="/static/ic_group_add_black_18dp.png" title="Добавить визит"/></a> на дату<input type="date" id="dt${item.id}" oninput="buildlink('${item.id}');" value="${currentDate()}"/></div>`;
     res += "<hr/>";
@@ -66,6 +92,7 @@ function buildlink(idd){
 document.addEventListener("DOMContentLoaded", function(){
     datareload();
 });
+
 </script>
 </head>
 <body>

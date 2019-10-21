@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -26,6 +27,7 @@ func UIHandle(filepath string) func(http.ResponseWriter, *http.Request) {
 		tmpl, err := template.ParseFiles(filepath, "./template/common_header.tmpl")
 		if err != nil {
 			log.Printf("Ошибка парсинга шаблона (%s): %v", filepath, err)
+			fmt.Printf("Ошибка парсинга шаблона (%s): %v\n", filepath, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Template parsing error"))
 			return
@@ -33,6 +35,7 @@ func UIHandle(filepath string) func(http.ResponseWriter, *http.Request) {
 		err = tmpl.Execute(w, nil)
 		if err != nil {
 			log.Printf("Ошибка рендеринга шаблона (%s): %v", filepath, err)
+			fmt.Printf("Ошибка рендеринга шаблона (%s): %v", filepath, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Template rendering error"))
 			return
@@ -80,6 +83,7 @@ func main() {
 	mux.HandleFunc("/api/prp_save", JsonApiPrpSave)
 	mux.HandleFunc("/api/visit_info", JsonApiVisitInfo)
 	mux.HandleFunc("/api/visit_save", JsonApiVisitSave)
+	mux.HandleFunc("/api/visit_remove", JsonApiVisitRemove)
 
 	s := &http.Server{
 		Addr:           cfg.ListenAddress,
