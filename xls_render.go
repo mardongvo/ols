@@ -127,6 +127,18 @@ func xlsCloneCell(from, to *xlsx.Cell) {
 	to.Value = from.Value
 	style := from.GetStyle()
 	style.ApplyAlignment = true
+	if style.Border.Bottom == "" {
+		style.Border.Bottom = "none"
+	}
+	if style.Border.Left == "" {
+		style.Border.Left = "none"
+	}
+	if style.Border.Top == "" {
+		style.Border.Top = "none"
+	}
+	if style.Border.Right == "" {
+		style.Border.Right = "none"
+	}
 	to.SetStyle(style)
 	to.HMerge = from.HMerge
 	to.VMerge = from.VMerge
