@@ -35,7 +35,7 @@ function setCookie(name,value,days) {
         date.setTime(date.getTime() + (days*24*60*60*1000));
         expires = "; expires=" + date.toUTCString();
     }
-    document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+    document.cookie = name + "=" + (encodeURI(value) || "")  + expires + "; path=/";
 }
 function getCookie(name) {
     var nameEQ = name + "=";
@@ -43,7 +43,7 @@ function getCookie(name) {
     for(var i=0;i < ca.length;i++) {
         var c = ca[i];
         while (c.charAt(0)==' ') c = c.substring(1,c.length);
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+        if (c.indexOf(nameEQ) == 0) return decodeURI(c.substring(nameEQ.length,c.length));
     }
     return null;
 }
@@ -51,11 +51,27 @@ function eraseCookie(name) {
     document.cookie = name+'=; Max-Age=-99999999;';  
 }
 
+function loadWorker() {
+    wname = getCookie("worker");
+    if (wname != null) {
+        $("#worker").val(wname);
+    }
+}
+
+function saveWorker() {
+    setCookie("worker", $("#worker").val(), 365*10);
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+    loadWorker();
+});
+
 </script>
 
 {{end}}
 
 {{define "common_header"}}
+<h2><img src="/static/ic_add_shopping_cart_black_36dp.png"/>Обеспечение лекарственными средствами</h2>
 <div width="100%">
 <table width="100%">
 <tr>
@@ -63,6 +79,9 @@ function eraseCookie(name) {
 <td><a href="/farm">Лекарства</a></td>
 <td><a href="/test">Тест</a></td>
 </tr>
+<tr>
+<td colspan="3" align="right">ФИО для печатной формы: <input type="text" value="" id="worker"/><input type="button" value="Сохранить" onclick="saveWorker()"/></td>
+</td>
 </table>
 </div>
 {{end}}

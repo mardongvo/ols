@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -16,13 +17,18 @@ func ApiGetXls(w http.ResponseWriter, r *http.Request) {
 	var idd int64
 	var err error
 	var f *xlsx.File
+	var cookie *http.Cookie
 	idd, err = strconv.ParseInt(r.URL.Query().Get("id"), 10, 32)
 	if err != nil {
 		idd = 0
 	}
 	data, rows := dbkeeper.GetXlsData(int(idd))
-	//TODO: вытаскивать Worker из кук
-	data.Worker = "________"
+	cookie, err = r.Cookie("worker")
+	if err != nil {
+		data.Worker = "________"
+	} else {
+		data.Worker, _ = url.QueryUnescape(cookie.Value)
+	}
 	//
 	f, err = XlsRenderTemplate("./template/visit_template.xlsx", data, rows)
 	if err != nil {
