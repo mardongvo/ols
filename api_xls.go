@@ -114,6 +114,7 @@ func (dk *DBKeeper) GetXlsData(id int) (XlsData, []XlsRow) {
 			}
 		}
 		tmp.NotPay = tmp.Price - tmp.Pay
+		tmp.Remain = tmp.PrpCount - tmp.PrevCount - tmp.PayCount
 		//****
 		//
 		resultData.SumPrice += tmp.Price
