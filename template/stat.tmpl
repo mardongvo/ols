@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+{{template "common_resources"}}
+<title>ОЛС - Обеспечение лекарственными средствами</title>
+
+<script>
+
+function startload() {
+    $('#loading').show();
+}
+
+function stopload() {
+    $('#loading').hide();
+}
+
+function get_stat() {
+    startload();
+    $.ajax({
+        url: "/api/stat",
+        data: {},
+        timeout: 0
+    })
+    .done(function(data, textStatus, jqXHR) {
+        stopload();
+        if(data.error != null) {
+            console.log(data.error);
+            return;
+        }
+        $('#stat_info').empty();
+        data.data.forEach( function(item, i, arr){
+            var tr = $("<tr>");
+            tr.append($("<td>", {class:"datacell", text: item.person_ndoc}) );
+            tr.append($("<td>", {class:"datacell", text: item.person_fio}));
+            tr.append($("<td>", {class:"datacell", text: '№ '+item.prp_num+' с '+item.prp_dtbeg+' по '+item.prp_dtend}));
+            tr.append($("<td>", {class:"datacell", text: item.stat_expensive==1 ? 'да' : ''}));
+            tr.append($("<td>", {class:"datacell", text: item.stat_last_visit}));
+            tr.append($("<td>", {class:"datacell", text: item.stat_all_sum.toLocaleString()}));
+            tr.append($("<td>", {class:"datacell", text: (Math.round((item.stat_all_sum-item.stat_pay_sum)*100)/100.0).toLocaleString() }));
+            $('#stat_info').append(tr);
+        } );
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+    get_stat();
+});
+
+</script>
+
+</head>
+<body>
+{{template "common_header"}}
+<div class="wrap">
+<div class="container">
+<img src="/static/loading.gif" id="loading" style="display: none;">
+<br/>
+<table class="datatable" width="100%"> 
+<thead>
+<tr>
+<td class="datacell">Номер дела</td>
+<td class="datacell">ФИО</td>
+<td class="datacell">ПРП</td>
+<td class="datacell">Есть дорогие</td>
+<td class="datacell">Последний визит</td>
+<td class="datacell">Общая сумма</td>
+<td class="datacell">Остаток</td>
+</tr></thead>
+<tbody id="stat_info"></tbody>
+</table>
+</div>
+</div>
+
+</body>
+</html>
