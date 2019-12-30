@@ -76,6 +76,7 @@ func main() {
 	mux.HandleFunc("/person", UIHandle("./template/person.tmpl"))
 	mux.HandleFunc("/prp", UIHandle("./template/prp.tmpl"))
 	mux.HandleFunc("/visit", UIHandle("./template/visit.tmpl"))
+	mux.HandleFunc("/farm", UIHandle("./template/farm.tmpl"))
 	mux.HandleFunc("/visit.xlsx", ApiGetXls)
 	mux.HandleFunc("/api/person_search", JsonApiFindPerson)
 	mux.HandleFunc("/api/person_info", JsonApiPersonInfo)
@@ -84,12 +85,16 @@ func main() {
 	mux.HandleFunc("/api/visit_info", JsonApiVisitInfo)
 	mux.HandleFunc("/api/visit_save", JsonApiVisitSave)
 	mux.HandleFunc("/api/visit_remove", JsonApiVisitRemove)
+	mux.HandleFunc("/api/farm_list", JsonApiFarmList)
+	mux.HandleFunc("/api/farm_candidates", JsonApiFarmCandidates)
+	mux.HandleFunc("/api/farm_candidates_save", JsonApiCandidatesSave)
+	mux.HandleFunc("/api/farm_add", JsonApiFarmAddNew)
 
 	s := &http.Server{
 		Addr:           cfg.ListenAddress,
 		Handler:        mux,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
+		ReadTimeout:    60 * time.Second,
+		WriteTimeout:   60 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 	log.Fatal(s.ListenAndServe())

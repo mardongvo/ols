@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+{{template "common_resources"}}
+<title>ОЛС - Обеспечение лекарственными средствами</title>
+
+<script>
+
+var farmlist = new Array();
+
+function startload() {
+    $('#loading').show();
+}
+
+function stopload() {
+    $('#loading').hide();
+}
+
+function get_farm_list() {
+    startload();
+    $.ajax({
+        url: "/api/farm_list",
+        data: {},
+        timeout: 0
+    })
+    .done(function(data, textStatus, jqXHR) {
+        stopload();
+        if(data.error != null) {
+            console.log(data.error);
+        } else {
+            farmlist = data.data;
+        }
+    });
+}
+
+
+function list_reload() {
+    startload();
+    $.ajax({
+        url: "/api/farm_candidates",
+        data: {},
+        timeout: 0
+    })
+    .done(function(data, textStatus, jqXHR) {
+        stopload();
+        if(data.error != null) {
+            console.log(data.error);
+        }
+        $('#farm_candidates').empty();
+        //console.log(data);
+        data.data.forEach( function(item, i, arr){
+            var tr = $("<tr>", {name: "row", id: item.id});
+            var cb = $("<input>", {type:"checkbox", name:"doUpdate"});
+            if ((item.candidates.length>0) && (item.candidates[0].match==1.0)) {
+                cb.attr("checked", "checked");
+            }
+            tr.append($("<td>", {class:"datacell", append: cb}) );
+            tr.append($("<td>", {class:"datacell", text: item.id}));
+            tr.append($("<td>", {class:"datacell", text: item.name}));
+            var selbox = $("<select>", {name: "farmid"});
+            item.candidates.forEach( function(item1, i1, arr1) {
+                selbox.append( $("<option>", {text: item1.name + " ("+item1.match.toFixed(2)+")", value: item1.id}) )
+            })
+            farmlist.forEach( function(item1, i1, arr1) {
+                selbox.append( $("<option>", {text: item1.name, value: item1.id}) )
+            })
+            tr.append($("<td>", {class:"datacell", append: selbox}));
+            tr.append($("<td>", {class:"datacell", append: $("<a>", {text: "Ред.ПРП", href: "/prp?id="+item.id_prp})}) );
+            $('#farm_candidates').append(tr);
+        } );
+    })
+    .fail(function(data, textStatus, jqXHR) {
+        console.log(data);
+        $('#test').text("fail");
+    })
+    ;
+}
+
+function save() {
+    var saverows = [];
+    $('tr[name="row"]').each(function(){
+        if ($(this).find('input[name="doUpdate"]').prop("checked")) {
+            saverows.push(
+            {id_template: safeInt($(this).attr("id"),0),
+            id_farm: safeInt( $(this).find('select[name="farmid"]').val(), 0)
+            });
+        }
+    });
+    //console.log(saverows);
+    startload();
+    $.ajax({
+        url: "/api/farm_candidates_save",
+        method: "POST",
+        data: JSON.stringify(saverows),
+        timeout: 5000
+    })
+    .done(function(data, textStatus, jqXHR) {
+        stopload();
+        list_reload();
+    })
+    .fail(function(data, textStatus, jqXHR) {
+        console.log(data);
+        $('#test').text("fail");
+    })
+    ;
+}
+
+function addnew() {
+    startload();
+    $.ajax({
+        url: "/api/farm_add",
+        method: "GET",
+        data: {name: $('#newname').val()},
+        timeout: 5000
+    })
+    .done(function(data, textStatus, jqXHR) {
+        stopload();
+        //list_reload();
+    })
+    .fail(function(data, textStatus, jqXHR) {
+        console.log(data);
+        $('#test').text("fail");
+    })
+    ;
+}
+
+</script>
+
+</head>
+<body>
+{{template "common_header"}}
+<div class="wrap">
+<div class="container">
+Добавить новый элемент в справочник:<br/>
+<input type="text" size="100" id="newname"><button onclick="addnew(); get_farm_list(); return false;">Добавить</button>
+</div>
+<div class="container">
+<button onclick="list_reload(); return false;">Загрузить список</button>
+<button onclick="save(); return false;">Установить</button>
+<img src="/static/loading.gif" id="loading" style="display: none;">
+<br/>
+<table class="datatable" width="100%"> 
+<thead>
+<tr>
+<td class="datacell">Обновить</td>
+<td class="datacell">ID</td>
+<td class="datacell">Название</td>
+<td class="datacell">Пункт из справочника</td>
+<td class="datacell">ПРП</td>
+</tr></thead>
+<tbody id="farm_candidates"></tbody>
+</table>
+</div>
+</div>
+
+</body>
+</html>
