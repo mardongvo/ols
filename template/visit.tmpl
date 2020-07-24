@@ -100,6 +100,9 @@ function recalc(){
                 pay = Math.round( price*pay_count/count*100)/100;
             }
         }
+        if (count == 0){
+            pay = 0.0;
+        }
         $(this).find('td[name="pay"]').text(pay.toFixed(2));
         $(this).find('td[name="notpay"]').text((price-pay).toFixed(2));
         sum_price += price;

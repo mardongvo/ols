@@ -113,6 +113,9 @@ func (dk *DBKeeper) GetXlsData(id int) (XlsData, []XlsRow) {
 				tmp.Pay = math.Round(tmp.Price*float64(tmp.PayCount)/float64(tmp.Count)*100) / 100
 			}
 		}
+		if tmp.Count == 0 {
+			tmp.Pay = 0
+		}
 		tmp.NotPay = tmp.Price - tmp.Pay
 		tmp.Remain = tmp.PrpCount - tmp.PrevCount - tmp.PayCount
 		//****
