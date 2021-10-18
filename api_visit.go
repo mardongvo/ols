@@ -247,8 +247,8 @@ func (dk *DBKeeper) RemoveVisitInfo(id int, onlyZero bool) error {
 		log.Printf("DBKeeper.RemoveVisitInfo(1): begin tx error: %v\n", err)
 		return err
 	}
-	rows, err = tx.Query(`select sum(cnt), sum(price), sum(price_znvlp),
-		max(reason), max(paydt) from visit_info where id_own=$1;`, id)
+	rows, err = tx.Query(`select coalesce(sum(cnt),0), coalesce(sum(price), 0.0), coalesce(sum(price_znvlp), 0.0),
+		coalesce(max(reason),''), coalesce(max(paydt), '') from visit_info where id_own=$1;`, id)
 	if err != nil {
 		log.Printf("DBKeeper.RemoveVisitInfo(2): query error: %v\n", err)
 		return err
