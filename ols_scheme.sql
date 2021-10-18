@@ -62,7 +62,10 @@ CREATE TABLE public.person (
     id integer,
     fio character varying(150) NOT NULL,
     ndoc character varying(10) NOT NULL,
-    active integer
+    active integer,
+	dossier_num varchar(20) default ''::character varying not null,
+	postal_code varchar(10) default ''::character varying not null,
+	address text default ''::text not null
 );
 
 

@@ -5,20 +5,27 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"strings"
 )
 
 type StatItem struct {
-	PersonId      int     `json:"person_id"`
-	PersonFio     string  `json:"person_fio"`
-	PersonNdoc    string  `json:"person_ndoc"`
-	PrpId         int     `json:"prp_id"`
-	PrpNum        string  `json:"prp_num"`
-	PrpDtBeg      string  `json:"prp_dtbeg"`
-	PrpDtEnd      string  `json:"prp_dtend"`
-	StatLastVisit string  `json:"stat_last_visit"`
-	StatAllSum    float32 `json:"stat_all_sum"`
-	StatPaySum    float32 `json:"stat_pay_sum"`
-	StatExpensive int     `json:"stat_expensive"`
+	PersonId         int     `json:"person_id"`
+	PersonFio        string  `json:"person_fio"`
+	PersonF          string  `json:"person_f"`
+	PersonI          string  `json:"person_i"`
+	PersonO          string  `json:"person_o"`
+	PersonNdoc       string  `json:"person_ndoc"`
+	PersonDossier    string  `json:"person_dossier"`
+	PersonPostalCode string  `json:"person_postal_code"`
+	PersonAddress    string  `json:"person_address"`
+	PrpId            int     `json:"prp_id"`
+	PrpNum           string  `json:"prp_num"`
+	PrpDtBeg         string  `json:"prp_dtbeg"`
+	PrpDtEnd         string  `json:"prp_dtend"`
+	StatLastVisit    string  `json:"stat_last_visit"`
+	StatAllSum       float32 `json:"stat_all_sum"`
+	StatPaySum       float32 `json:"stat_pay_sum"`
+	StatExpensive    int     `json:"stat_expensive"`
 }
 
 func JsonApiStatInfo(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +81,8 @@ func (dk *DBKeeper) GetStatInfo() DBResult {
 		 upper(name) like '%ГИАЛГАН%' or upper(name) like '%БЕРОДУАЛ%' or upper(name) like '%СПИРИВА%'
 		 group by id_own
 		)
-	select person.id, person.fio, person.ndoc,
+	select person.id, person.fio, person.ndoc, person.dossier_num,
+	person.postal_code,	person.address,
 	prp.id, prp.num, coalesce(to_char(prp.dtbeg, 'DD.MM.YYYY'), ''),
 	coalesce(to_char(prp.dtend, 'DD.MM.YYYY'), ''),
 	coalesce(to_char(tlastvis.dt, 'DD.MM.YYYY'), ''), tallsum.sm, tpaysum.pay_sum,
@@ -93,6 +101,7 @@ func (dk *DBKeeper) GetStatInfo() DBResult {
 	for rows.Next() {
 		var tmp StatItem
 		err = rows.Scan(&tmp.PersonId, &tmp.PersonFio, &tmp.PersonNdoc,
+			&tmp.PersonDossier, &tmp.PersonPostalCode, &tmp.PersonAddress,
 			&tmp.PrpId, &tmp.PrpNum, &tmp.PrpDtBeg, &tmp.PrpDtEnd,
 			&tmp.StatLastVisit, &tmp.StatAllSum, &tmp.StatPaySum,
 			&tmp.StatExpensive)
@@ -101,6 +110,14 @@ func (dk *DBKeeper) GetStatInfo() DBResult {
 		}
 		tmp.StatAllSum = float32(math.Round(float64(tmp.StatAllSum)*100) / 100.0)
 		tmp.StatPaySum = float32(math.Round(float64(tmp.StatPaySum)*100) / 100.0)
+		fio := strings.SplitN(tmp.PersonFio, " ", 3)
+		tmp.PersonF = strings.Title(strings.ToLower(fio[0]))
+		if len(fio) > 1 {
+			tmp.PersonI = strings.Title(strings.ToLower(fio[1]))
+		}
+		if len(fio) > 2 {
+			tmp.PersonO = strings.Title(strings.ToLower(fio[2]))
+		}
 		resultData = append(resultData, tmp)
 	}
 	return DBResult{nil, resultData}

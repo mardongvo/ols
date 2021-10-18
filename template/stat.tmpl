@@ -37,6 +37,12 @@ function get_stat() {
             tr.append($("<td>", {class:"datacell", text: item.stat_last_visit}));
             tr.append($("<td>", {class:"datacell", text: item.stat_all_sum.toLocaleString()}));
             tr.append($("<td>", {class:"datacell", text: (Math.round((item.stat_all_sum-item.stat_pay_sum)*100)/100.0).toLocaleString() }));
+			//
+            tr.append($("<td>", {class:"datacell", text: item.person_dossier}));
+            tr.append($("<td>", {class:"datacell", text: item.person_f}));
+            tr.append($("<td>", {class:"datacell", text: item.person_i}));
+            tr.append($("<td>", {class:"datacell", text: item.person_o}));
+            tr.append($("<td>", {class:"datacell", text: item.person_address}));
             $('#stat_info').append(tr);
         } );
     });
@@ -58,13 +64,20 @@ document.addEventListener("DOMContentLoaded", function(){
 <table class="datatable" width="100%"> 
 <thead>
 <tr>
-<td class="datacell">Номер дела</td>
+<td class="datacell">Снилс(Номер дела)</td>
 <td class="datacell">ФИО</td>
 <td class="datacell">ПРП</td>
 <td class="datacell">Есть дорогие</td>
 <td class="datacell">Последний визит</td>
 <td class="datacell">Общая сумма</td>
 <td class="datacell">Остаток</td>
+
+<td class="datacell">Номер дела ПСФ</td>
+<td class="datacell">Фамилия</td>
+<td class="datacell">Имя</td>
+<td class="datacell">Отчество</td>
+<td class="datacell">Адрес</td>
+
 </tr></thead>
 <tbody id="stat_info"></tbody>
 </table>
