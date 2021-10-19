@@ -1,32 +1,11 @@
---
--- PostgreSQL database dump
---
-
--- Dumped from database version 12.1
--- Dumped by pg_dump version 12.1
-
---
--- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
---
-
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 
-
---
--- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: -
---
-
 COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
-
 
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
-
---
--- Name: farma; Type: TABLE; Schema: public; Owner: -
---
 
 CREATE TABLE public.farma (
     id integer NOT NULL,
@@ -35,10 +14,6 @@ CREATE TABLE public.farma (
 );
 
 
---
--- Name: farma_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
 CREATE SEQUENCE public.farma_id_seq
     START WITH 1
     INCREMENT BY 1
@@ -46,17 +21,9 @@ CREATE SEQUENCE public.farma_id_seq
     NO MAXVALUE
     CACHE 1;
 
-
---
--- Name: farma_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
 ALTER SEQUENCE public.farma_id_seq OWNED BY public.farma.id;
 
-
---
--- Name: person; Type: TABLE; Schema: public; Owner: -
---
+---
 
 CREATE TABLE public.person (
     id integer,
@@ -69,10 +36,7 @@ CREATE TABLE public.person (
 );
 
 
---
--- Name: prp; Type: TABLE; Schema: public; Owner: -
---
-
+---
 CREATE TABLE public.prp (
     id integer,
     id_own integer,
@@ -312,3 +276,34 @@ CREATE INDEX "nameFARMA" ON public.farma USING gist (name public.gist_trgm_ops);
 -- PostgreSQL database dump complete
 --
 
+---
+create table public.znvlp (
+    id integer not null,
+    name varchar(300)  DEFAULT ''::character varying NOT NULL,
+	unique(name)
+);
+
+create table public.znvlp_maxprice(
+	id integer not null,
+	id_znvlp integer not null,
+	price numeric(10,2) default 0 not null,
+	dt date not null,
+	unique(id_znvlp, dt)
+);
+
+CREATE SEQUENCE public.znvlp_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+CREATE SEQUENCE public.znvlp_maxprice_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER TABLE ONLY public.znvlp ALTER COLUMN id SET DEFAULT nextval('public.znvlp_id_seq'::regclass);
+ALTER TABLE ONLY public.znvlp_maxprice ALTER COLUMN id SET DEFAULT nextval('public.znvlp_maxprice_id_seq'::regclass);
