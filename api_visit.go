@@ -14,17 +14,18 @@ import (
 const DateLayout = "2006-01-02"
 
 type VisitRow struct {
-	Id             int     `json:"id"` //prp_template id
-	Name           string  `json:"name"`
-	Count          int     `json:"count"`
-	Price          float32 `json:"price"`
-	PriceZnvlp     float32 `json:"price_znvlp"`
-	Reason         string  `json:"reason"`
-	PayDt          string  `json:"paydt"`
-	PrpCount       int     `json:"prp_count"`
-	PrevCount      int     `json:"prev_count"`       //
-	PrevCountSaved int     `json:"prev_count_saved"` //
-	RecepCount     int     `json:"recep_count"`
+	Id             int        `json:"id"` //prp_template id
+	Name           string     `json:"name"`
+	Count          int        `json:"count"`
+	Price          float32    `json:"price"`
+	PriceZnvlp     float32    `json:"price_znvlp"`
+	Reason         string     `json:"reason"`
+	PayDt          string     `json:"paydt"`
+	PrpCount       int        `json:"prp_count"`
+	PrevCount      int        `json:"prev_count"`       //
+	PrevCountSaved int        `json:"prev_count_saved"` //
+	RecepCount     int        `json:"recep_count"`
+	Hints          ZnvlpHints `json:"hints"`
 }
 
 type VisitInfo struct {
@@ -162,8 +163,11 @@ END:
 func (dk *DBKeeper) GetVisitInfo(id int) DBResult {
 	var resultError error = nil
 	var resultData VisitInfo
+	//
+	hints := dk.GetZnvlpHints()
+	//
 	resultData.Rows = make([]VisitRow, 0)
-	/////////
+	//
 	rows, err := dk.db.Query(`select visit.id, visit.dt,
 	 prp.id, prp.num, prp.dtbeg, prp.dtend,
 	 person.id, person.fio, person.ndoc
@@ -173,7 +177,6 @@ func (dk *DBKeeper) GetVisitInfo(id int) DBResult {
 		log.Printf("DBKeeper.GetVisitInfo(1): select query error: %v\n", err)
 		return DBResult{err, nil}
 	}
-	defer rows.Close()
 	for rows.Next() {
 		var dt, dt1, dt2 time.Time
 		err = rows.Scan(&resultData.Id, &dt, &resultData.PrpId, &resultData.PrpNum, &dt1, &dt2,
@@ -186,6 +189,7 @@ func (dk *DBKeeper) GetVisitInfo(id int) DBResult {
 		resultData.PrpDtBeg = fmt.Sprintf("%02d.%02d.%04d", dt1.Day(), dt1.Month(), dt1.Year())
 		resultData.PrpDtEnd = fmt.Sprintf("%02d.%02d.%04d", dt2.Day(), dt2.Month(), dt2.Year())
 	}
+	rows.Close()
 	///////
 	rows, err = dk.db.Query(`with
 		curinfo as (select * from visit_info where id_own = $1),
@@ -208,6 +212,7 @@ func (dk *DBKeeper) GetVisitInfo(id int) DBResult {
 		err = rows.Scan(&tmp.Id, &tmp.Name, &tmp.Count, &tmp.Price,
 			&tmp.PriceZnvlp, &tmp.Reason, &tmp.PayDt, &tmp.PrpCount,
 			&tmp.PrevCountSaved, &tmp.PrevCount)
+		tmp.Hints = SimilarityCopy(hints, tmp.Name, 0.8)
 		if err != nil {
 			log.Printf("DBKeeper.GetVisitInfo(2): get row error: %v\n", err)
 			resultError = err

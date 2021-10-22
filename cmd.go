@@ -95,7 +95,7 @@ func main() {
 	mux.HandleFunc("/api/farm_add", JsonApiFarmAddNew)
 	mux.HandleFunc("/api/stat", JsonApiStatInfo)
 	mux.HandleFunc("/api/znvlp", JsonApiZnvlp)
-	mux.HandleFunc("/api/znvlp_price", JsonApiZnvlpPrice)
+	mux.HandleFunc("/api/znvlp_price", JsonApiZnvlp)
 
 	s := &http.Server{
 		Addr:           cfg.ListenAddress,

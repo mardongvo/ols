@@ -39,10 +39,27 @@ function updatePage(data) {
         tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"count",width:"95%","value":item.count, on:{ input: markchange }}) }) );
         tr.append( $("<td/>", {class:"datacell", text: "-", name:"pay_count"}) );
         tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"price",width:"95%","value":floatView(item.price), step: 0.01, on:{ input: markchange }}) }) );
-        tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type:"number",name:"price_znvlp",width:"95%","value":floatView(item.price_znvlp), step: 0.01, on:{ input: markchange }}) }) );
+		var znvlp_input = $("<input>", {type:"number",name:"price_znvlp",width:"95%","value":floatView(item.price_znvlp), step: 0.01, on:{ input: markchange }});
+        tr.append( $("<td/>", {class:"datacell", append:  znvlp_input}) );
         tr.append( $("<td/>", {class:"datacell", text: "-", name:"pay"}) );
         tr.append( $("<td/>", {class:"datacell", text: "-", name:"notpay"}) );
         tr.append( $("<td/>", {class:"datacell", append: $("<input>", {type: "text", name: "reason", width: "95%", "value": item.reason, on:{ input: markchange }}) }) );
+		//hints
+		var selbox = $("<select>");
+		item.hints.forEach( function(hitem, hi, harr){
+			selbox.append( $("<option>", {text: hitem.name + " ["+hitem.dt+", "+hitem.price.toFixed(2)+", "+hitem.similarity.toFixed(2)+"]", value: hitem.price.toFixed(2)}) );
+		});
+		var selbtn = $("<button>", {html: "&lt;-"});
+		selbtn.on("click", function() {
+			znvlp_input.val(selbox.val());
+			znvlp_input.css({"color": "#FF0000"});
+			recalc();
+		});
+		var td = $("<td/>", {class:"datacell"});
+		td.append(selbox);
+        td.append(selbtn);
+		tr.append(td);
+		//
         $('#visit_rows').append(tr);
     });
 }
@@ -178,6 +195,7 @@ document.addEventListener("DOMContentLoaded", function(){
 <td class="datacell">К оплате (руб.), подпись специалиста филиала</td>
 <td class="datacell">Сумма недоплаты</td>
 <td class="datacell">Примечание (указать причину неисполнения и др.)</td>
+<td class="datacell">ЖНВЛП подсказка</td>
 </tr></thead>
 <tbody id="visit_rows"></tbody>
 <tfoot id="visit_summary">
@@ -187,6 +205,7 @@ document.addEventListener("DOMContentLoaded", function(){
 <td class="datacell"></td>
 <td class="datacell" id="sum_pay" style="font-weight: bold;">0,00</td>
 <td class="datacell" id="sum_notpay" style="font-weight: bold;">0,00</td>
+<td class="datacell"></td>
 <td class="datacell"></td>
 
 </tfoot>
