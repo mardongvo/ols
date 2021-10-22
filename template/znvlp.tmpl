@@ -16,6 +16,26 @@ function stopload() {
     $('#loading').hide();
 }
 
+function makerq(url, method, dataobj, callback) {
+    startload();
+    $.ajax({
+        url: url,
+        method: method,
+        data: JSON.stringify(dataobj),
+        timeout: 5000
+    })
+    .done(function(data, textStatus, jqXHR) {
+        stopload();
+		callback(data);
+    })
+    .fail(function(data, textStatus, jqXHR) {
+        stopload();
+        console.log(data);
+        $('#test').text("fail");
+    })
+    ;
+}
+  
 function list_reload() {
     startload();
     $.ajax({
@@ -32,49 +52,71 @@ function list_reload() {
         //console.log(data);
         data.data.forEach( function(item, i, arr){
             var tr = $("<tr>", {name: "row", id: item.id});
-            var znvlp_name = $("<input>", {type:"text", name:"name", value: item.name, size: 100});
+            var znvlp_name = $("<input>", {type:"text", name:"name", value: item.name, size: 50});
 			var znvlp_save = $("<button>", {html: "Сохранить"});
 			var znvlp_delete = $("<button>", {html: "Удалить"});
 			znvlp_save.on("click", function() {
-				save_znvlp(item.id, znvlp_name);
+				makerq("/api/znvlp", "PUT", {id: item.id, name: znvlp_name.val()},
+					   function(data){ list_reload(); }
+					  );
 			});
 			znvlp_delete.on("click", function() {
-				delete_znvlp(item.id);
+				makerq("/api/znvlp", "DELETE", {id: item.id},
+					   function(data){ list_reload(); }
+					  );
 			});
-            var td = $("<td>", {class:"datacell"})
+            var td = $("<td>", {class:"datacell", width: "0.1%", "white-space": "nowrap"});
 			td.append(znvlp_name);
+			td.append($("<br/>"));
 			td.append(znvlp_save);
+			td.append($("<br/>"));
 			td.append(znvlp_delete);
-			td.append($("<div>", {class: "subdiv", text: "Цены:"}));
-			var div = $("<div>", {class: "subdiv"})
+			tr.append(td);
+            var td = $("<td>", {class:"datacell", width: "0.1%", "white-space": "nowrap"});
+			td.append($("<div>", {class: "subdiv", text: "Добавить цену:"}));
 			var new_price_dt = $("<input>", {type:"date"});
 			var new_price_value = $("<input>", {type:"number", step: 0.01});
 			var new_price_save = $("<button>", {html: "Добавить"});
 			new_price_save.on("click", function() {
-				add_price(item.id, new_price_dt, new_price_value);
+				makerq("/api/znvlp_price", "POST", {id_znvlp: item.id, dt: new_price_dt.val(),
+													price: safeFloat(new_price_value.val())},
+					   function(data){ list_reload(); }
+					  );
 			});
-			div.append(new_price_dt);
-			div.append(new_price_value);
-			div.append(new_price_save);
-			td.append(div);
+			td.append(new_price_dt);
+			td.append($("<br/>"));
+			td.append(new_price_value);
+			td.append($("<br/>"));
+			td.append(new_price_save);
+			tr.append(td);
 			item.prices.forEach(function(pitem, pi, parr) {
-				var div = $("<div>", {class: "subdiv"})
+				var td = $("<td>", {class:"datacell", width: "0.1%", "white-space": "nowrap"});
 				var price_dt = $("<input>", {type:"date", value: pitem.dt});
 				var price_value = $("<input>", {type:"number", step: 0.01, value: pitem.price});
+				price_value.css({width: "5em"});
 				var price_save = $("<button>", {html: "Сохранить"});
 				var price_delete = $("<button>", {html: "Удалить"});
 				price_save.on("click", function() {
-					save_price(pitem.id, price_dt, price_value);
+					makerq("/api/znvlp_price", "PUT", {id: pitem.id, dt: price_dt.val(),
+													   price: safeFloat(price_value.val())},
+					   function(data){ list_reload(); }
+						  );
 				});
 				price_delete.on("click", function() {
-					delete_price(pitem.id);
+					makerq("/api/znvlp_price", "DELETE", {id: pitem.id},
+						   function(data){ list_reload(); }
+						  );
 				});
-				div.append(price_dt);
-				div.append(price_value);
-				div.append(price_save);
-				div.append(price_delete);
-				td.append(div);
+				td.append(price_dt);
+				td.append($("<br/>"));
+				td.append(price_value);
+				td.append($("<br/>"));
+				td.append(price_save);
+				td.append($("<br/>"));
+				td.append(price_delete);
+				tr.append(td);
 			});
+			var td = $("<td>", {class:"datacell"});
 			tr.append(td);
             $('#znvlp_list').append(tr);
         } );
@@ -107,107 +149,6 @@ function add_znvlp() {
     ;
 }
 
-function save_znvlp(idd, el_name) {
-	  newname = el_name.val();
-    startload();
-    $.ajax({
-        url: "/api/znvlp",
-        method: "PUT",
-        data: JSON.stringify({name: newname, id: idd}),
-        timeout: 5000
-    })
-    .done(function(data, textStatus, jqXHR) {
-        stopload();
-		list_reload();
-    })
-    .fail(function(data, textStatus, jqXHR) {
-        stopload();
-        console.log(data);
-        $('#test').text("fail");
-    })
-    ;
-}
-
-function delete_znvlp(idd) {
-    startload();
-    $.ajax({
-        url: "/api/znvlp",
-        method: "DELETE",
-        data: JSON.stringify({id: idd}),
-        timeout: 5000
-    })
-    .done(function(data, textStatus, jqXHR) {
-        stopload();
-		list_reload();
-    })
-    .fail(function(data, textStatus, jqXHR) {
-        stopload();
-        console.log(data);
-        $('#test').text("fail");
-    })
-    ;
-}
-
-function add_price(id_znvlp, el_date, el_value) {
-    startload();
-    $.ajax({
-        url: "/api/znvlp_price",
-        method: "POST",
-        data: JSON.stringify({id_znvlp: id_znvlp, dt: el_date.val(), price: safeFloat(el_value.val())}),
-        timeout: 5000
-    })
-    .done(function(data, textStatus, jqXHR) {
-        stopload();
-		list_reload();
-    })
-    .fail(function(data, textStatus, jqXHR) {
-        stopload();
-        console.log(data);
-        $('#test').text("fail");
-    })
-    ;
-}
-
-function save_price(idd, el_date, el_value) {
-    startload();
-    $.ajax({
-        url: "/api/znvlp_price",
-        method: "PUT",
-        data: JSON.stringify({id: idd, dt: el_date.val(), price: safeFloat(el_value.val())}),
-        timeout: 5000
-    })
-    .done(function(data, textStatus, jqXHR) {
-        stopload();
-		list_reload();
-    })
-    .fail(function(data, textStatus, jqXHR) {
-        stopload();
-        console.log(data);
-        $('#test').text("fail");
-    })
-    ;
-}
-
-function delete_price(idd) {
-    startload();
-    $.ajax({
-        url: "/api/znvlp_price",
-        method: "DELETE",
-        data: JSON.stringify({id: idd}),
-        timeout: 5000
-    })
-    .done(function(data, textStatus, jqXHR) {
-        stopload();
-		list_reload();
-    })
-    .fail(function(data, textStatus, jqXHR) {
-        stopload();
-        console.log(data);
-        $('#test').text("fail");
-    })
-    ;
-}
-
 document.addEventListener("DOMContentLoaded", function(){
     list_reload();
 });
@@ -222,10 +163,10 @@ document.addEventListener("DOMContentLoaded", function(){
 <button onclick="list_reload(); return false;">Загрузить список</button><img src="/static/loading.gif" id="loading" style="display: none;">
 <br/>
 Добавить новый элемент в ЖНВЛП:<br/>
-<input type="text" size="100" id="newname"><button onclick="add_znvlp(); list_reload(); return false;">Добавить</button>
+<input type="text" size="50" id="newname"><button onclick="add_znvlp(); list_reload(); return false;">Добавить</button>
 </div>
 <div class="container">
-<table class="datatable" width="100%"> 
+<table class="datatable"> 
 <tbody id="znvlp_list"></tbody>
 </table>
 </div>

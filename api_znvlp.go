@@ -1,13 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
-	//"sort"
 )
 
 type ZnvlpPriceItem struct {
@@ -17,14 +17,6 @@ type ZnvlpPriceItem struct {
 	Date    string  `json:"dt"`
 }
 
-type ZnvlpItem struct {
-	Id         int     `json:"id"`
-	Name       string  `json:"name"`
-	MaxPrice   float64 `json:"price"`
-	MaxDate    string  `json:"dt"`
-	Similarity float64 `json:"similarity"`
-}
-
 type ZnvlpDictionaryItem struct {
 	Id     int              `json:"id"`
 	Name   string           `json:"name"`
@@ -32,82 +24,180 @@ type ZnvlpDictionaryItem struct {
 }
 
 //
+type CommonRequest interface {
+	Action(tx *sql.Tx) error
+}
+
+type RequestConstructor func(inp []byte) (CommonRequest, error)
+
+var ACTION_MAP = []struct {
+	path       string
+	method     string
+	constuctor RequestConstructor
+}{
+	{
+		"/api/znvlp",
+		"POST",
+		func(inp []byte) (CommonRequest, error) {
+			request := RequestNewZnvlp{}
+			err := json.Unmarshal(inp, &request)
+			return request, err
+		},
+	},
+	{
+		"/api/znvlp",
+		"PUT",
+		func(inp []byte) (CommonRequest, error) {
+			request := RequestSaveZnvlp{}
+			err := json.Unmarshal(inp, &request)
+			return request, err
+		},
+	},
+	{
+		"/api/znvlp",
+		"DELETE",
+		func(inp []byte) (CommonRequest, error) {
+			request := RequestDeleteZnvlp{}
+			err := json.Unmarshal(inp, &request)
+			return request, err
+		},
+	},
+	{
+		"/api/znvlp_price",
+		"POST",
+		func(inp []byte) (CommonRequest, error) {
+			request := RequestNewPrice{}
+			err := json.Unmarshal(inp, &request)
+			return request, err
+		},
+	},
+	{
+		"/api/znvlp_price",
+		"PUT",
+		func(inp []byte) (CommonRequest, error) {
+			request := RequestSavePrice{}
+			err := json.Unmarshal(inp, &request)
+			return request, err
+		},
+	},
+	{
+		"/api/znvlp_price",
+		"DELETE",
+		func(inp []byte) (CommonRequest, error) {
+			request := RequestDeletePrice{}
+			err := json.Unmarshal(inp, &request)
+			return request, err
+		},
+	},
+}
+
 type RequestNewZnvlp struct {
 	Name string `json:"name"`
 }
+
+func (rq RequestNewZnvlp) Action(tx *sql.Tx) error {
+	_, err := tx.Exec(`insert into znvlp(name) values($1);`, strings.ToUpper(rq.Name))
+	return err
+}
+
 type RequestSaveZnvlp struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
+}
+
+func (rq RequestSaveZnvlp) Action(tx *sql.Tx) error {
+	_, err := tx.Exec(`update znvlp set name=$1 where id=$2;`, strings.ToUpper(rq.Name), rq.Id)
+	return err
 }
 
 type RequestDeleteZnvlp struct {
 	Id int `json:"id"`
 }
 
+func (rq RequestDeleteZnvlp) Action(tx *sql.Tx) error {
+	_, err := tx.Exec(`delete from znvlp where id=$1;`, rq.Id)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(`delete from znvlp_maxprice where id_znvlp=$1;`, rq.Id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type RequestNewPrice struct {
+	IdZnvlp int     `json:"id_znvlp"`
+	Price   float64 `json:"price"`
+	Date    string  `json:"dt"`
+}
+
+func (rq RequestNewPrice) Action(tx *sql.Tx) error {
+	_, err := tx.Exec(`insert into znvlp_maxprice(id_znvlp, dt, price) values($1,$2,$3);`, rq.IdZnvlp, rq.Date, rq.Price)
+	return err
+}
+
+type RequestSavePrice struct {
+	Id    int     `json:"id"`
+	Price float64 `json:"price"`
+	Date  string  `json:"dt"`
+}
+
+func (rq RequestSavePrice) Action(tx *sql.Tx) error {
+	_, err := tx.Exec(`update znvlp_maxprice set dt=$1, price=$2 where id=$3;`, rq.Date, rq.Price, rq.Id)
+	return err
+}
+
+type RequestDeletePrice struct {
+	Id int `json:"id"`
+}
+
+func (rq RequestDeletePrice) Action(tx *sql.Tx) error {
+	_, err := tx.Exec(`delete from znvlp_maxprice where id=$1;`, rq.Id)
+	return err
+}
+
 //
 func JsonApiZnvlp(w http.ResponseWriter, r *http.Request) {
 	var res DBResult
-	if r.Method == "GET" {
+	var mapped bool = false
+	if (r.URL.Path == "/api/znvlp") && (r.Method == "GET") {
 		res = dbkeeper.GetZnvlpList()
+		goto END
 	}
-	if r.Method == "POST" {
-		inp, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("JsonApiZnvlp(1):POST: error %v, source: %s", err, r.Body)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
+	for _, act := range ACTION_MAP {
+		if (r.URL.Path == act.path) && (r.Method == act.method) {
+			mapped = true
+			inp, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				log.Printf("JsonApiZnvlp:(%s, %s): read error %v, source: %s", act.path, act.method, err, r.Body)
+				res = DBResult{fmt.Errorf("%v", err), nil}
+				goto END
+			}
+			request, err := act.constuctor(inp)
+			if err != nil {
+				log.Printf("JsonApiZnvlp:(%s, %s): unmarshal error %v", act.path, act.method, err)
+				res = DBResult{fmt.Errorf("%v", err), nil}
+				goto END
+			}
+			res = dbkeeper.CommonAction(request)
 		}
-		var rq RequestNewZnvlp
-		err = json.Unmarshal(inp, &rq)
-		if err != nil {
-			log.Printf("JsonApiZnvlp(2):POST: error %v", err)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		res = dbkeeper.AddZnvlp(rq)
 	}
-	if r.Method == "PUT" {
-		inp, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("JsonApiZnvlp(1):PUT: error %v, source: %s", err, r.Body)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		var rq RequestSaveZnvlp
-		err = json.Unmarshal(inp, &rq)
-		if err != nil {
-			log.Printf("JsonApiZnvlp(2):PUT: error %v", err)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		res = dbkeeper.SaveZnvlp(rq)
-	}
-	if r.Method == "DELETE" {
-		inp, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("JsonApiZnvlp(1):DELETE: error %v, source: %s", err, r.Body)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		var rq RequestDeleteZnvlp
-		err = json.Unmarshal(inp, &rq)
-		if err != nil {
-			log.Printf("JsonApiZnvlp(2):DELETE: error %v", err)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		res = dbkeeper.DeleteZnvlp(rq)
+	if !mapped {
+		log.Printf("JsonApiZnvlp:(%s, %s): unmapped request", r.URL.Path, r.Method)
+		res = DBResult{fmt.Errorf("Unmapped request"), nil}
+		goto END
 	}
 END:
 	data, err := json.Marshal(res)
 	if err != nil {
-		log.Printf("JsonApiZnvlp: error %v", err)
+		log.Printf("JsonApiZnvlp:(%s,%s): marshal error %v", r.URL.Path, r.Method, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(data)
 	if err != nil {
-		log.Printf("JsonApiZnvlp: write error %v", err)
+		log.Printf("JsonApiZnvlp:(%s,%s): write error %v", r.URL.Path, r.Method, err)
 		return
 	}
 }
@@ -133,7 +223,7 @@ func (dk *DBKeeper) GetZnvlpList() DBResult {
 	rows.Close()
 	//2. prices
 	if len(resultData) > 0 {
-		rows, err = dk.db.Query(`select id, id_znvlp, price, dt from znvlp_maxprice where id_znvlp in (select id from znvlp) order by id_znvlp, dt;`)
+		rows, err = dk.db.Query(`select id, id_znvlp, price, dt from znvlp_maxprice where id_znvlp in (select id from znvlp) order by id_znvlp, dt desc;`)
 		if err != nil {
 			log.Printf("DBKeeper.GetZnvlpList(2): select query error: %v\n", err)
 			return DBResult{err, nil}
@@ -161,203 +251,21 @@ func (dk *DBKeeper) GetZnvlpList() DBResult {
 	return DBResult{nil, resultData}
 }
 
-func (dk *DBKeeper) AddZnvlp(rq RequestNewZnvlp) DBResult {
+func (dk *DBKeeper) CommonAction(rq CommonRequest) DBResult {
 	tx, err := dk.db.Begin()
 	if err != nil {
-		log.Printf("DBKeeper.AddZnvlp(1): begin tx error: %v\n", err)
+		log.Printf("DBKeeper.CommonAction(1): begin tx error: %v, request: %#v\n", err, rq)
 		return DBResult{err, nil}
 	}
-	_, err = tx.Exec(`insert into znvlp(name) values($1);`, strings.ToUpper(rq.Name))
+	err = rq.Action(tx)
 	if err != nil {
 		tx.Rollback()
-		log.Printf("DBKeeper.AddZnvlp(2): insert error: %v\n", err)
+		log.Printf("DBKeeper.CommonAction(2): action error: %v, request: %#v\n", err, rq)
 		return DBResult{err, nil}
 	}
 	err = tx.Commit()
 	if err != nil {
-		log.Printf("DBKeeper.AddZnvlp(3): commit tx error %v", err)
-	}
-	return DBResult{err, nil}
-}
-
-func (dk *DBKeeper) SaveZnvlp(rq RequestSaveZnvlp) DBResult {
-	tx, err := dk.db.Begin()
-	if err != nil {
-		log.Printf("DBKeeper.SaveZnvlp(1): begin tx error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	_, err = tx.Exec(`update znvlp set name=$1 where id=$2;`, strings.ToUpper(rq.Name), rq.Id)
-	if err != nil {
-		tx.Rollback()
-		log.Printf("DBKeeper.SaveZnvlp(2): insert error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("DBKeeper.SaveZnvlp(3): commit tx error %v", err)
-	}
-	return DBResult{err, nil}
-}
-
-func (dk *DBKeeper) DeleteZnvlp(rq RequestDeleteZnvlp) DBResult {
-	tx, err := dk.db.Begin()
-	if err != nil {
-		log.Printf("DBKeeper.DeleteZnvlp(1): begin tx error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	_, err = tx.Exec(`delete from znvlp where id=$1;`, rq.Id)
-	if err != nil {
-		tx.Rollback()
-		log.Printf("DBKeeper.DeleteZnvlp(2): delete error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	_, err = tx.Exec(`delete from znvlp_maxprice where id_znvlp=$1;`, rq.Id)
-	if err != nil {
-		tx.Rollback()
-		log.Printf("DBKeeper.DeleteZnvlp(2): delete error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("DBKeeper.DeleteZnvlp(3): commit tx error %v", err)
-	}
-	return DBResult{err, nil}
-}
-
-////////////////
-type RequestNewPrice struct {
-	IdZnvlp int     `json:"id_znvlp"`
-	Price   float64 `json:"price"`
-	Date    string  `json:"dt"`
-}
-
-type RequestSavePrice struct {
-	Id    int     `json:"id"`
-	Price float64 `json:"price"`
-	Date  string  `json:"dt"`
-}
-
-type RequestDeletePrice struct {
-	Id int `json:"id"`
-}
-
-func JsonApiZnvlpPrice(w http.ResponseWriter, r *http.Request) {
-	var res DBResult
-	if r.Method == "POST" {
-		inp, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("JsonApiZnvlpPrice(1):POST: error %v, source: %s", err, r.Body)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		var rq RequestNewPrice
-		err = json.Unmarshal(inp, &rq)
-		if err != nil {
-			log.Printf("JsonApiZnvlpPrice(2):POST: error %v", err)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		res = dbkeeper.AddPrice(rq)
-	}
-	if r.Method == "PUT" {
-		inp, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("JsonApiZnvlpPrice(1):PUT: error %v, source: %s", err, r.Body)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		var rq RequestSavePrice
-		err = json.Unmarshal(inp, &rq)
-		if err != nil {
-			log.Printf("JsonApiZnvlpPrice(2):PUT: error %v", err)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		res = dbkeeper.SavePrice(rq)
-	}
-	if r.Method == "DELETE" {
-		inp, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("JsonApiZnvlpPrice(1):DELETE: error %v, source: %s", err, r.Body)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		var rq RequestDeletePrice
-		err = json.Unmarshal(inp, &rq)
-		if err != nil {
-			log.Printf("JsonApiZnvlpPrice(2):DELETE: error %v", err)
-			res = DBResult{fmt.Errorf("%v", err), nil}
-			goto END
-		}
-		res = dbkeeper.DeletePrice(rq)
-	}
-END:
-	data, err := json.Marshal(res)
-	if err != nil {
-		log.Printf("JsonApiZnvlpPrice: error %v", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(data)
-	if err != nil {
-		log.Printf("JsonApiZnvlpPrice: write error %v", err)
-		return
-	}
-}
-
-func (dk *DBKeeper) AddPrice(rq RequestNewPrice) DBResult {
-	tx, err := dk.db.Begin()
-	if err != nil {
-		log.Printf("DBKeeper.AddPrice(1): begin tx error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	_, err = tx.Exec(`insert into znvlp_maxprice(id_znvlp, dt, price) values($1,$2,$3);`, rq.IdZnvlp, rq.Date, rq.Price)
-	if err != nil {
-		tx.Rollback()
-		log.Printf("DBKeeper.AddPrice(2): insert error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("DBKeeper.AddPrice(3): commit tx error %v", err)
-	}
-	return DBResult{err, nil}
-}
-
-func (dk *DBKeeper) SavePrice(rq RequestSavePrice) DBResult {
-	tx, err := dk.db.Begin()
-	if err != nil {
-		log.Printf("DBKeeper.SavePrice(1): begin tx error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	_, err = tx.Exec(`update znvlp_maxprice set dt=$1, price=$2 where id=$3;`, rq.Date, rq.Price, rq.Id)
-	if err != nil {
-		tx.Rollback()
-		log.Printf("DBKeeper.SavePrice(2): insert error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("DBKeeper.SavePrice(3): commit tx error %v", err)
-	}
-	return DBResult{err, nil}
-}
-
-func (dk *DBKeeper) DeletePrice(rq RequestDeletePrice) DBResult {
-	tx, err := dk.db.Begin()
-	if err != nil {
-		log.Printf("DBKeeper.DeletePrice(1): begin tx error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	_, err = tx.Exec(`delete from znvlp_maxprice where id=$1;`, rq.Id)
-	if err != nil {
-		tx.Rollback()
-		log.Printf("DBKeeper.DeletePrice(2): insert error: %v\n", err)
-		return DBResult{err, nil}
-	}
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("DBKeeper.DeletePrice(3): commit tx error %v", err)
+		log.Printf("DBKeeper.CommonAction(2): commit tx error: %v, request: %#v\n", err, rq)
 	}
 	return DBResult{err, nil}
 }
