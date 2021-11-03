@@ -212,7 +212,7 @@ func (dk *DBKeeper) GetVisitInfo(id int) DBResult {
 		err = rows.Scan(&tmp.Id, &tmp.Name, &tmp.Count, &tmp.Price,
 			&tmp.PriceZnvlp, &tmp.Reason, &tmp.PayDt, &tmp.PrpCount,
 			&tmp.PrevCountSaved, &tmp.PrevCount)
-		tmp.Hints = SimilarityCopy(hints, tmp.Name, 0.8)
+		tmp.Hints = SimilarityCopy(hints, tmp.Name, 0.65)
 		if err != nil {
 			log.Printf("DBKeeper.GetVisitInfo(2): get row error: %v\n", err)
 			resultError = err

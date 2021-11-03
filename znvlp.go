@@ -49,7 +49,7 @@ func SimilarityCopy(hints ZnvlpHints, target string, minimalSimilarity float64) 
 		MaxPrice: 0, Similarity: minimalSimilarity}}
 	for _, h := range hints {
 		newh := h
-		newh.Similarity = similarity(h.Name, target)
+		newh.Similarity = similarity2(h.Name, target)
 		res = append(res, newh)
 	}
 	sort.Sort(res)
