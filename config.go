@@ -9,6 +9,7 @@ import (
 type OLSConfig struct {
 	Database      string `json:"database"` //database connection string
 	ListenAddress string `json:"listen"`   //listen address(optional) and/or port(optional)
+	LogFile       string `json:"logfile"`  //file path to logging(optional), empty for stdout
 }
 
 func ReadConfig(r io.Reader) (OLSConfig, error) {

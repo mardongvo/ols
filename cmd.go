@@ -45,18 +45,12 @@ func UIHandle(filepath string) func(http.ResponseWriter, *http.Request) {
 }
 
 func main() {
-	log.SetFlags(log.Lshortfile | log.LstdFlags)
-	logfile, err := os.Create("ols.log")
-	if err != nil {
-		log.Fatalf("Невозможно создать файл: %v", err)
-	}
-	defer logfile.Close()
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("recovered: %v", r)
 		}
 	}()
-	log.SetOutput(logfile)
+	//config
 	cfgfile, err := os.Open("config.json")
 	if err != nil {
 		log.Fatalf("Ошибка при открытии файла конфигурации: %v", err)
@@ -65,6 +59,17 @@ func main() {
 	cfgfile.Close()
 	if err != nil {
 		log.Fatalln(err)
+	}
+
+	//log
+	log.SetFlags(log.Lshortfile | log.LstdFlags)
+	if cfg.LogFile > "" {
+		logfile, err := os.Create(cfg.LogFile)
+		if err != nil {
+			log.Fatalf("Невозможно создать файл: %v", err)
+		}
+		defer logfile.Close()
+		log.SetOutput(logfile)
 	}
 
 	dbkeeper = NewDBKeeper(cfg.Database)
